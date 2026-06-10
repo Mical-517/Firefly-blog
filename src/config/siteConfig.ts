@@ -133,11 +133,11 @@ export const siteConfig: SiteConfig = {
 	// bangumi的数据为编译时获取的，所以不是实时数据，请配置bangumi.userId
 	pages: {
 		// 友链页面开关
-		friends: false,
+		friends: true,
 		// 赞助页面开关
-		sponsor: true,
+		sponsor: false,
 		// 留言板页面开关，需要配置评论系统
-		guestbook: true,
+		guestbook: false,
 		// 番组计划页面开关，含追番、游戏、书籍和音乐
 		bangumi: true,
 		// 相册页面开关

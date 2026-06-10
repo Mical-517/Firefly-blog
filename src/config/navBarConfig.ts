@@ -53,7 +53,7 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 			...(siteConfig.pages.bangumi ? [LinkPreset.Bangumi] : []),
 		],
 	});
-
+/*
 	// 关于及其子菜单
 	links.push({
 		name: "关于",
@@ -67,7 +67,7 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 			LinkPreset.About,
 		],
 	});
-
+*/
 	// 自定义导航栏链接,并且支持多级菜单
 	links.push({
 		name: "链接",
@@ -78,21 +78,21 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 		children: [
 			{
 				name: "GitHub",
-				url: "https://github.com/Mical-517/Firefly-blog",
+				url: "https://github.com/Mical-517",
 				external: true,
 				icon: "fa7-brands:github",
 			},
 			{
 				name: "Gitee",
-				url: "https://gitee.com/CuteLeaf/Firefly",
+				url: "https://gitee.com/mical-517",
 				external: true,
 				icon: "fa7-brands:gitee",
 			},
 			{
-				name: "QQ交流群",
-				url: "https://qm.qq.com/q/ZGsFa8qX2G",
+				name: "B站",
+				url: "https://space.bilibili.com/3546734017907108?spm_id_from=333.788.0.0",
 				external: true,
-				icon: "fa7-brands:qq",
+				icon: "simple-icons:bilibili",
 			},
 		],
 	});
