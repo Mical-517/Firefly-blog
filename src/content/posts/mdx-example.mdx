@@ -1,7 +1,8 @@
 ---
 title: MDX 格式文章示例
 published: 2026-06-10
-description: 这是一�?MDX 格式的示例文章，展示了如何在 Markdown 中使�?JSX�?tags: [MDX, Markdown, 文章示例]
+description: "MDX format blog post example"
+tags: [MDX, Markdown, 文章示例]
 category: 文章示例
 draft: false
 image: api
@@ -29,31 +30,35 @@ import { Icon } from 'astro-icon/components'
 
 <div class="flex items-center gap-2 my-4">
   <Icon name="fa7-solid:rocket" class="text-4xl text-red-500" />
-  <span>火箭发射�?/span>
+  <span>Rocket Launch!</span>
 </div>
 ```
 <div class="flex items-center gap-2 my-4">
   <Icon name="fa7-solid:rocket" class="text-4xl text-red-500" />
-  <span>火箭发射�?/span>
+  <span>Rocket Launch!</span>
 </div>
 
 
-## 使用 JSX
+## Use JSX
 
-你也可以直接�?HTML/JSX�?```
-<div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-lg my-4">
-  这是一个自定义样式�?div 块，使用�?Tailwind CSS 类�?</div>
+You can also use HTML/JSX directly:
 ```
 <div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-lg my-4">
-  这是一个自定义样式�?div 块，使用�?Tailwind CSS 类�?</div>
+  A custom styled div block with Tailwind CSS classes.
+</div>
+```
+<div className="p-4 bg-blue-100 dark:bg-blue-900 rounded-lg my-4">
+  A custom styled div block with Tailwind CSS classes.
+</div>
 
-## 简单的变量导出
+## Simple Variable Export
 ```
 export const year = new Date().getFullYear()
 
-今年�?{year} 年�?```
+This year is {year}.
+```
 export const year = new Date().getFullYear()
 
-今年�?{year} 年�?
+This year is {year}.
 
 更多信息，请查看 [MDX 文档](https://mdxjs.com/)

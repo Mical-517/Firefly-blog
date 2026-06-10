@@ -2,7 +2,8 @@
 title: Markdown Mermaid 图表
 published: 2026-06-10
 pinned: false
-description: 一个包�?Mermaid �?Markdown 博客文章简单示例�?tags: [Markdown, 博客, Mermaid, Firefly]
+description: "Mermaid diagram examples in Markdown"
+tags: [Markdown, 博客, Mermaid, Firefly]
 category: 文章示例
 draft: false
 ---
