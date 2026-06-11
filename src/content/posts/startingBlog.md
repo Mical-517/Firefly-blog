@@ -3,8 +3,8 @@ title: startingBlog
 published: 2026-06-11
 description: '简单记录一下搭建博客参考文章以及视频'
 image: ''
-tags: [搭建博客]
-category: 搭建博客
+tags: [博客]
+category: 博客指南
 draft: false 
 lang: ''
 ---
