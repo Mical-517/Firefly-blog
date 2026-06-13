@@ -53,4 +53,9 @@ export const LinkPresets: { [key in LinkPreset]: NavBarLink } = {
 		url: "/categories/",
 		icon: "material-symbols:folder-open-rounded",
 	},
+	[LinkPreset.Notes]: {
+		name: i18n(I18nKey.notes),
+		url: "/notes/",
+		icon: "material-symbols:dynamic-feed-rounded",
+	},
 };

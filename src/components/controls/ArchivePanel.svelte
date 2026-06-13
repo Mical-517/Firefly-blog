@@ -8,10 +8,12 @@ import { getPostUrlBySlug } from "@/utils/url-utils";
 export let tags: string[] = [];
 export let categories: string[] = [];
 export let sortedPosts: Post[] = [];
+export let groupLinks: PostGroupInfo[] = [];
 
 const params = new URLSearchParams(window.location.search);
 tags = params.has("tag") ? params.getAll("tag") : [];
 categories = params.has("category") ? params.getAll("category") : [];
+const group = params.get("group") || "";
 const uncategorized = params.get("uncategorized");
 
 interface Post {
@@ -20,8 +22,16 @@ interface Post {
 		title: string;
 		tags: string[];
 		category?: string | null;
+		group: "thoughts" | "tech";
 		published: Date;
 	};
+}
+
+interface PostGroupInfo {
+	key: "thoughts" | "tech";
+	name: string;
+	count: number;
+	url: string;
 }
 
 interface Group {
@@ -34,7 +44,7 @@ interface ActiveFilter {
 	values: string[];
 }
 
-let groups: Group[] = [];
+let yearGroups: Group[] = [];
 let activeFilters: ActiveFilter[] = [];
 let primaryFilter: ActiveFilter | null = null;
 let secondaryFilters: ActiveFilter[] = [];
@@ -104,6 +114,13 @@ onMount(async () => {
 		currentFilters.push({ labelKey: I18nKey.categories, values: categories });
 	}
 
+	if (group) {
+		currentFilters.push({
+			labelKey: I18nKey.groupNavigation,
+			values: [group === "thoughts" ? i18n(I18nKey.thoughts) : i18n(I18nKey.techRecords)],
+		});
+	}
+
 	if (uncategorized) {
 		currentFilters.push({
 			labelKey: I18nKey.categories,
@@ -127,6 +144,10 @@ onMount(async () => {
 				Array.isArray(post.data.tags) &&
 				post.data.tags.some((tag) => tags.includes(tag)),
 		);
+	}
+
+	if (group) {
+		filteredPosts = filteredPosts.filter((post) => post.data.group === group);
 	}
 
 	if (categories.length > 0) {
@@ -165,7 +186,7 @@ onMount(async () => {
 
 	groupedPostsArray.sort((a, b) => b.year - a.year);
 
-	groups = groupedPostsArray;
+	yearGroups = groupedPostsArray;
 
 	// 默认只展开最近一年，其他年份折叠
 	if (groupedPostsArray.length > 1) {
@@ -197,6 +218,28 @@ onMount(async () => {
 </script>
 
 <div class="card-base px-8 py-6">
+	{#if groupLinks.length > 0}
+		<div class="mb-5 flex flex-wrap gap-2">
+			<a
+				href="/archive/"
+				class:active-group={!group}
+				class="group-chip"
+			>
+				{i18n(I18nKey.allPostsGroup)}
+			</a>
+			{#each groupLinks as groupItem}
+				<a
+					href={groupItem.url}
+					class:active-group={group === groupItem.key}
+					class="group-chip"
+				>
+					{groupItem.name}
+					<span>{groupItem.count}</span>
+				</a>
+			{/each}
+		</div>
+	{/if}
+
 	{#if primaryFilter}
 		<div class="mb-5">
 			<div class="flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
@@ -216,7 +259,7 @@ onMount(async () => {
 		</div>
 	{/if}
 
-	{#each groups as group}
+	{#each yearGroups as group}
 		<div data-year={group.year}>
 			<button
 				class="flex flex-row w-full items-center h-15 cursor-pointer rounded-lg
@@ -305,5 +348,28 @@ onMount(async () => {
 <style>
 	.archive-arrow {
 		display: inline-flex;
+	}
+
+	.group-chip {
+		display: inline-flex;
+		align-items: center;
+		gap: 0.4rem;
+		padding: 0.45rem 0.85rem;
+		border-radius: 9999px;
+		background: color-mix(in srgb, var(--btn-content) 8%, transparent);
+		color: var(--btn-content);
+		font-size: 0.875rem;
+		transition: all 0.2s ease;
+	}
+
+	.group-chip span {
+		font-size: 0.75rem;
+		opacity: 0.7;
+	}
+
+	.group-chip:hover,
+	.group-chip.active-group {
+		background: color-mix(in srgb, var(--primary) 16%, transparent);
+		color: var(--primary);
 	}
 </style>

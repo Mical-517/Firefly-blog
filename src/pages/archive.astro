@@ -3,19 +3,30 @@ import ArchivePanel from "@components/controls/ArchivePanel.svelte";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { getSortedPostsList } from "@/utils/content-utils";
+import { getGroupList, getSortedPostsList } from "@/utils/content-utils";
 
 const sortedPostsList = await getSortedPostsList();
+const groups = await getGroupList();
 ---
 
 <MainGridLayout title={i18n(I18nKey.archive)}>
   <script is:inline>
     (function() {
       var p = new URLSearchParams(location.search);
+      var group = p.get("group") || "";
       var cat = p.get("category") || "";
       var tag = p.get("tag") || "";
       var unc = p.get("uncategorized");
-      var t = cat || (unc ? "未分类" : "") || (tag ? "#" + tag : "");
+      var groupMap = {
+        thoughts: "感想记录",
+        tech: "技术记录"
+      };
+      var titleParts = [];
+      if (group && groupMap[group]) titleParts.push(groupMap[group]);
+      if (cat) titleParts.push(cat);
+      else if (unc) titleParts.push("未分类");
+      else if (tag) titleParts.push("#" + tag);
+      var t = titleParts.join(" · ");
       if (t) {
         requestAnimationFrame(function() {
           var el = document.querySelector(".banner-page-title-text");
@@ -24,5 +35,5 @@ const sortedPostsList = await getSortedPostsList();
       }
     })();
   </script>
-  <ArchivePanel sortedPosts={sortedPostsList} client:only="svelte" />
+  <ArchivePanel sortedPosts={sortedPostsList} groupLinks={groups} client:only="svelte" />
 </MainGridLayout>

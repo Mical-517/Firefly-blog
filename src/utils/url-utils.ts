@@ -54,6 +54,38 @@ export function getCategoryUrl(category: string | null): string {
 	return url(`/archive/?category=${encodeURIComponent(category.trim())}`);
 }
 
+export function getGroupedCategoryUrl(
+	group: string | null,
+	category: string | null,
+): string {
+	const normalizedGroup = group?.trim();
+	if (
+		!category ||
+		category.trim() === "" ||
+		category.trim().toLowerCase() === i18n(I18nKey.uncategorized).toLowerCase()
+	) {
+		if (normalizedGroup) {
+			return url(
+				`/archive/?group=${encodeURIComponent(normalizedGroup)}&uncategorized=true`,
+			);
+		}
+		return url("/archive/?uncategorized=true");
+	}
+
+	const encodedCategory = encodeURIComponent(category.trim());
+	if (normalizedGroup) {
+		return url(
+			`/archive/?group=${encodeURIComponent(normalizedGroup)}&category=${encodedCategory}`,
+		);
+	}
+
+	return url(`/archive/?category=${encodedCategory}`);
+}
+
+export function getNotesUrl(): string {
+	return url("/notes/");
+}
+
 export function getDir(path: string): string {
 	// 移除文件扩展名
 	const pathWithoutExt = removeFileExtension(path);

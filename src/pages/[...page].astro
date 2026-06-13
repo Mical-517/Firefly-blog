@@ -4,7 +4,7 @@ import Pagination from "@/components/common/Pagination.astro";
 import PostPage from "@/components/layout/PostPage.astro";
 import { siteConfig } from "@/config";
 import MainGridLayout from "@/layouts/MainGridLayout.astro";
-import { getSortedPosts } from "@/utils/content-utils";
+import { getGroupList, getSortedPosts } from "@/utils/content-utils";
 export const getStaticPaths = (async ({ paginate }) => {
 	const allBlogPosts = await getSortedPosts();
 	// 使用配置中的文章数量
@@ -14,11 +14,21 @@ export const getStaticPaths = (async ({ paginate }) => {
 // https://github.com/withastro/astro/issues/6507#issuecomment-1489916992
 
 const { page } = Astro.props;
+const groups = await getGroupList();
 
 const len = page.data.length;
 ---
 
 <MainGridLayout>
+  <div class="card-base rounded-(--radius-large) p-4 md:p-5 mb-4 flex flex-wrap gap-2 onload-animation">
+    <a href="/" class="group-chip active-group">{siteConfig.title}</a>
+    {groups.map((group) => (
+      <a href={group.url} class="group-chip">
+        {group.name}
+        <span>{group.count}</span>
+      </a>
+    ))}
+  </div>
   <PostPage page={page} />
   {
     page.total > page.size && (
@@ -68,3 +78,28 @@ const len = page.data.length;
     return "desktop";
   }
 </script>
+
+<style>
+  .group-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.85rem;
+    border-radius: 9999px;
+    background: color-mix(in srgb, var(--btn-content) 8%, transparent);
+    color: var(--btn-content);
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+  }
+
+  .group-chip span {
+    font-size: 0.75rem;
+    opacity: 0.7;
+  }
+
+  .group-chip:hover,
+  .group-chip.active-group {
+    background: color-mix(in srgb, var(--primary) 16%, transparent);
+    color: var(--primary);
+  }
+</style>

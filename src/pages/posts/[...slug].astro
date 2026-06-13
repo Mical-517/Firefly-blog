@@ -9,7 +9,11 @@ import License from "@components/misc/License.astro";
 import I18nKey from "@i18n/i18nKey";
 import { i18n } from "@i18n/translation";
 import MainGridLayout from "@layouts/MainGridLayout.astro";
-import { getRelatedPosts, getSortedPosts } from "@utils/content-utils";
+import {
+	getAdjacentNotes,
+	getRelatedPosts,
+	getSortedPosts,
+} from "@utils/content-utils";
 import {
 	getFileDirFromPath,
 	getPostUrlBySlug,
@@ -32,7 +36,7 @@ import { getApiUrlList, processCoverImageSync } from "@/utils/image-utils";
 import { url } from "@/utils/url-utils";
 
 export async function getStaticPaths() {
-	const blogEntries = await getSortedPosts();
+	const blogEntries = await getSortedPosts({ includeNotes: true });
 	return blogEntries.map((entry) => {
 		// 将 id 转换为 slug（移除扩展名）以匹配路由参数
 		const slug = removeFileExtension(entry.id);
@@ -45,6 +49,7 @@ export async function getStaticPaths() {
 
 const { entry } = Astro.props;
 const { Content, headings } = await render(entry);
+const isNotePost = entry.data.postType === "note";
 
 const { remarkPluginFrontmatter } = await render(entry);
 
@@ -55,6 +60,15 @@ const bannerPostMeta = {
 	words: remarkPluginFrontmatter.words,
 	minutes: remarkPluginFrontmatter.minutes,
 };
+
+const noteImages = entry.data.noteImages || [];
+const noteCoverImages = [entry.data.image, ...noteImages].filter(
+	(image): image is string => !!image,
+);
+const noteGroupLabel = entry.data.group === "thoughts" ? "感想记录" : "技术记录";
+const adjacentNotes = isNotePost
+	? await getAdjacentNotes(entry.id)
+	: { prev: null, next: null };
 
 // 处理随机图：如果image为"api"，则从配置的API获取随机图
 const processedImage = processCoverImageSync(entry.data.image, entry.id);
@@ -139,8 +153,8 @@ const relatedPosts = await getRelatedPosts(entry, 5);
   setOGTypeArticle={true}
   postSlug={entry.id}
   postCategory={entry.data.category || undefined}
-  headings={headings}
-  bannerPostMeta={bannerPostMeta}
+  headings={isNotePost ? [] : headings}
+  bannerPostMeta={isNotePost ? undefined : bannerPostMeta}
 >
   <!-- KaTeX 按需加载 - 仅在文章页面 -->
   <KatexManager slot="head" />
@@ -158,10 +172,12 @@ const relatedPosts = await getRelatedPosts(entry, 5);
       id="post-container"
       class:list={[
         "card-base z-10 px-6 md:px-9 pt-6 pb-4 relative w-full ",
+        isNotePost ? "note-post-container" : "",
         {},
       ]}
     >
       <!-- word count and reading time -->
+      {!isNotePost ? (
       <div
         class="flex flex-row text-black/30 dark:text-white/30 gap-5 mb-3 transition onload-animation"
       >
@@ -207,6 +223,65 @@ const relatedPosts = await getRelatedPosts(entry, 5);
           </div>
         )}
       </div>
+      ) : (
+      <div class="note-post-head onload-animation mb-5">
+        <div class="flex flex-wrap items-center gap-3 text-sm text-50 mb-4">
+          <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-[oklch(0.95_0.025_var(--hue))] dark:bg-[oklch(0.25_0.025_var(--hue))] text-(--primary)">
+            <Icon name="material-symbols:calendar-month-rounded" class="text-base" />
+            {formatDateToYYYYMMDD(entry.data.published)}
+          </span>
+          <span class="inline-flex items-center px-3 py-1 rounded-full bg-black/5 dark:bg-white/8">
+            {noteGroupLabel}
+          </span>
+          {entry.data.category && (
+            <span class="inline-flex items-center px-3 py-1 rounded-full bg-black/5 dark:bg-white/8">
+              {entry.data.category}
+            </span>
+          )}
+          {entry.data.noteMood && (
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-black/5 dark:bg-white/8">
+              <Icon name="material-symbols:mood-rounded" class="text-base" />
+              {entry.data.noteMood}
+            </span>
+          )}
+          {entry.data.noteLocation && (
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-black/5 dark:bg-white/8">
+              <Icon name="material-symbols:location-on-outline-rounded" class="text-base" />
+              {entry.data.noteLocation}
+            </span>
+          )}
+          {entry.data.noteWeather && (
+            <span class="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-black/5 dark:bg-white/8">
+              <Icon name="material-symbols:partly-cloudy-day-outline-rounded" class="text-base" />
+              {entry.data.noteWeather}
+            </span>
+          )}
+        </div>
+        {entry.data.description && (
+          <div class="note-post-summary text-lg md:text-xl text-75 leading-8 whitespace-pre-line mb-5">
+            {entry.data.description}
+          </div>
+        )}
+        {noteCoverImages.length > 0 && (
+          <div class:list={[
+            "grid gap-3 mb-6 note-post-gallery",
+            noteCoverImages.length === 1 ? "grid-cols-1" : "grid-cols-2 md:grid-cols-3",
+          ]}>
+            {noteCoverImages.map((image) => (
+              <div class="overflow-hidden rounded-2xl bg-black/5 dark:bg-white/5 aspect-square">
+                <CoverImage
+                  src={image}
+                  basePath={getFileDirFromPath(entry.filePath || '')}
+                  class="w-full h-full object-cover"
+                  preview={true}
+                  apiUrls={apiUrls}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      )}
 
       <!-- title -->
       <div class="relative onload-animation">
@@ -214,18 +289,17 @@ const relatedPosts = await getRelatedPosts(entry, 5);
           data-pagefind-body
           data-pagefind-weight="10"
           data-pagefind-meta="title"
-          class="transition w-full block font-bold mb-3
-                    text-3xl md:text-[2.25rem]/[2.75rem]
-                    text-black/90 dark:text-white/90
-                    md:before:w-1 before:h-5 before:rounded-md before:bg-(--primary)
-                    before:absolute before:top-3 before:-left-4.5"
+          class:list={[
+            "transition w-full block font-bold mb-3 text-3xl md:text-[2.25rem]/[2.75rem] text-black/90 dark:text-white/90 md:before:w-1 before:h-5 before:rounded-md before:bg-(--primary) before:absolute before:top-3 before:-left-4.5",
+            isNotePost ? "note-post-title md:before:hidden before:hidden mb-4" : "",
+          ]}
         >
           {entry.data.title}
         </div>
       </div>
 
       <!-- metadata -->
-      <div class="onload-animation">
+      <div class:list={["onload-animation", isNotePost ? "note-post-meta" : ""]}>
         <PostMetadata
           className="mb-5"
           published={entry.data.published}
@@ -235,7 +309,7 @@ const relatedPosts = await getRelatedPosts(entry, 5);
           id={entry.id}
         />
         {
-          !processedImage && (
+          !processedImage && !isNotePost && (
             <div class="border-(--line-divider) border-dashed border-b mt-3 mb-5" />
           )
         }
@@ -244,7 +318,7 @@ const relatedPosts = await getRelatedPosts(entry, 5);
       <!-- always show cover as long as it has one -->
 
       {
-        processedImage && coverImageConfig.enableInPost && (
+        processedImage && coverImageConfig.enableInPost && !isNotePost && (
           <div style="margin-top:1rem;">
             <CoverImage
               id="post-cover"
@@ -260,9 +334,26 @@ const relatedPosts = await getRelatedPosts(entry, 5);
 
       {entry.data.password ? (
         <EncryptedPost password={entry.data.password} slug={entry.id} hint={entry.data.passwordHint}>
-          <Markdown class="mb-6 markdown-content onload-animation">
+          <Markdown class:list={["mb-6 markdown-content onload-animation", isNotePost ? "note-post-content" : ""]}>
             <Content />
           </Markdown>
+
+          {isNotePost && (adjacentNotes.prev || adjacentNotes.next) && (
+            <div class="note-adjacent-nav mb-6 rounded-xl onload-animation grid gap-3 md:grid-cols-2">
+              {adjacentNotes.prev ? (
+                <a href={getPostUrlBySlug(adjacentNotes.prev.id)} class="note-adjacent-card">
+                  <span class="note-adjacent-label">上一篇随笔</span>
+                  <span class="note-adjacent-title">{adjacentNotes.prev.data.title}</span>
+                </a>
+              ) : <div></div>}
+              {adjacentNotes.next ? (
+                <a href={getPostUrlBySlug(adjacentNotes.next.id)} class="note-adjacent-card text-right md:ml-auto">
+                  <span class="note-adjacent-label">下一篇随笔</span>
+                  <span class="note-adjacent-title">{adjacentNotes.next.data.title}</span>
+                </a>
+              ) : <div></div>}
+            </div>
+          )}
 
           {/* 赞助按钮 & 分享按钮 */}
           {
@@ -348,9 +439,26 @@ const relatedPosts = await getRelatedPosts(entry, 5);
         </EncryptedPost>
       ) : (
         <>
-          <Markdown class="mb-6 markdown-content onload-animation">
+          <Markdown class:list={["mb-6 markdown-content onload-animation", isNotePost ? "note-post-content" : ""]}>
             <Content />
           </Markdown>
+
+          {isNotePost && (adjacentNotes.prev || adjacentNotes.next) && (
+            <div class="note-adjacent-nav mb-6 rounded-xl onload-animation grid gap-3 md:grid-cols-2">
+              {adjacentNotes.prev ? (
+                <a href={getPostUrlBySlug(adjacentNotes.prev.id)} class="note-adjacent-card">
+                  <span class="note-adjacent-label">上一篇随笔</span>
+                  <span class="note-adjacent-title">{adjacentNotes.prev.data.title}</span>
+                </a>
+              ) : <div></div>}
+              {adjacentNotes.next ? (
+                <a href={getPostUrlBySlug(adjacentNotes.next.id)} class="note-adjacent-card text-right md:ml-auto">
+                  <span class="note-adjacent-label">下一篇随笔</span>
+                  <span class="note-adjacent-title">{adjacentNotes.next.data.title}</span>
+                </a>
+              ) : <div></div>}
+            </div>
+          )}
 
           {/* 赞助按钮 & 分享按钮 */}
           {
@@ -437,6 +545,73 @@ const relatedPosts = await getRelatedPosts(entry, 5);
       )}
     </div>
   </div>
+
+  <style>
+    .note-post-container {
+      padding-top: 1.75rem;
+    }
+
+    .note-post-title {
+      font-size: 1.75rem;
+      line-height: 2.4rem;
+      font-weight: 700;
+    }
+
+    .note-post-summary {
+      padding: 1rem 1.1rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--primary) 7%, transparent);
+    }
+
+    .note-post-gallery :global(img) {
+      transition: transform 0.3s ease;
+    }
+
+    .note-post-gallery:hover :global(img) {
+      transform: scale(1.03);
+    }
+
+    .note-post-meta :global(.post-meta) {
+      margin-bottom: 1rem;
+    }
+
+    .note-post-content {
+      font-size: 1.05rem;
+      line-height: 2rem;
+    }
+
+    .note-post-content :global(h1),
+    .note-post-content :global(h2),
+    .note-post-content :global(h3) {
+      margin-top: 1.6rem;
+      margin-bottom: 0.8rem;
+    }
+
+    .note-adjacent-card {
+      display: flex;
+      flex-direction: column;
+      gap: 0.45rem;
+      padding: 1rem 1.1rem;
+      border-radius: 1rem;
+      background: color-mix(in srgb, var(--btn-content) 6%, transparent);
+      transition: all 0.2s ease;
+    }
+
+    .note-adjacent-card:hover {
+      background: color-mix(in srgb, var(--primary) 12%, transparent);
+      color: var(--primary);
+    }
+
+    .note-adjacent-label {
+      font-size: 0.85rem;
+      color: var(--content-meta);
+    }
+
+    .note-adjacent-title {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+  </style>
 
   <!-- 上次编辑时间 -->
   {

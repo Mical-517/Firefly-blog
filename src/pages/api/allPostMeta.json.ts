@@ -1,7 +1,7 @@
 import { getSortedPosts } from "@/utils/content-utils";
 
 export async function GET() {
-	const posts = await getSortedPosts();
+	const posts = await getSortedPosts({ includeNotes: true });
 
 	const allPostsData = posts
 		.map((post) => ({

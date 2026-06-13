@@ -8,6 +8,7 @@ import {
 	getCategoryList,
 	getSortedPosts,
 	getTagList,
+	type GroupedCategory,
 } from "@/utils/content-utils";
 
 interface Props {
@@ -29,7 +30,7 @@ const siteStartDate = siteConfig.siteStartDate || "2025-01-01";
 
 // 获取所有文章
 const posts = await getSortedPosts();
-const categories = await getCategoryList();
+const categories = (await getCategoryList()) as GroupedCategory[];
 const tags = await getTagList();
 
 // 计算总字数
