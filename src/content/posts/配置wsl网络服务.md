@@ -3,8 +3,8 @@ title: 配置wsl网络服务
 published: 2026-06-24
 description: '简要记录配置wsl使用代理的网络服务问题'
 image: ''
-tags: []
-category: ''
+tags: [wsl代理网络设置]
+category: 'c++环境配置'
 group: tech
 postType: post
 draft: false
