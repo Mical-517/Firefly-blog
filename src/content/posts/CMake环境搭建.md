@@ -4,7 +4,7 @@ published: 2026-06-25
 description: 'c++环境配置中cmake环境搭建'
 image: ''
 tags: [CMake]
-category: 'c++环境'
+category: 'c++环境配置'
 group: tech
 postType: post
 draft: false
