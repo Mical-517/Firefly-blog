@@ -34,6 +34,14 @@ export const galleryConfig: GalleryConfig = {
 			password: "123456",
 			passwordHint: "示例密码123456",
 		},
+		{
+			id:"streetfight",
+			name:"StreetFight",
+			description:"街霸六相册",
+			location:"StreeghtFight six",
+			date:"2026-07-03",
+			tags:["StreetFight"],
+		},
 	],
 
 	// 瀑布流最小列宽(px)，浏览器根据容器宽度自动计算列数，默认 240
