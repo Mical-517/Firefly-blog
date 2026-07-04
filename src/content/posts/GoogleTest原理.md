@@ -1,18 +1,3 @@
----
-title: GoogleTest原理
-published: 2026-07-03
-description: '通过一个简易实现简述一个GoogleTest的核心原理'
-image: ''
-tags: [GoogleTest]
-category: 'c++环境配置'
-group: tech
-postType: post
-draft: false
-lang: ''
----
-
-仓库地址：[GoogleTest学习版: GoogleTest 原理学习笔记 & mini_gtest 教学框架](https://gitee.com/mical-517/google-test-learning-edition)
-
 # GoogleTest 原理学习笔记
 
 > 来源整理：
@@ -1131,55 +1116,358 @@ void MathTest_Add::TestBody() {
 
 ---
 
-## 12. 最核心的一张流程图
+## 12. 核心流程图（Mermaid）
 
-```text
-用户写 TEST/TEST_F
-        |
-        v
-宏展开：生成测试类 + registered_ 静态变量 + TestBody()
-        |
-        v
-main() 之前静态初始化
-        |
-        v
-Registry::AddTest(...) 注册 TestInfo
-        |
-        v
-main()
-        |
-        v
-RUN_ALL_TESTS()
-        |
-        v
-读取 Registry 中所有 TestInfo
-        |
-        v
-创建 TestContext，并设置 g_current_context
-        |
-        v
-通过 factory 创建测试对象
-        |
-        v
-SetUp()
-        |
-        v
-TestBody()
-        |
-        v
-EXPECT/ASSERT -> Eq/IsTrue/... -> ReportAssertion
-        |
-        v
-AssertionRecord 写入当前 TestContext
-        |
-        v
-TearDown()
-        |
-        v
-根据 TestResult 判断 OK / FAILED
-        |
-        v
-监听器输出结果，程序返回 0 或 1
+### 12.1 完整调用流程 + 断言结果流向
+
+```mermaid
+flowchart TD
+    subgraph 阶段一["阶段一：编译期 —— 宏展开"]
+        A["用户写 TEST(FactorialTest, HandlesPositiveInput) { EXPECT_EQ(Factorial(1), 1); }"]
+        A --> B["TEST 宏展开"]
+        B --> B1["生成类: FactorialTest_HandlesPositiveInput : public Test"]
+        B --> B2["生成静态变量: static bool registered_"]
+        B --> B3["生成函数签名: void TestBody()"]
+    end
+
+    subgraph 阶段二["阶段二：main() 之前 —— 静态注册"]
+        B2 --> C["静态初始化: registered_ = Registry::Instance().AddTest(...)"]
+        C --> C1["new TestInfo { suite_name='FactorialTest', test_name='HandlesPositiveInput', factory=λ }"]
+        C1 --> C2["push_back 进 Registry::tests_ 向量"]
+        C2 --> C3[("全局注册表 Registry<br/>std::vector&lt;TestInfo&gt;")]
+    end
+
+    subgraph 阶段三["阶段三：main() —— 初始化"]
+        D["int main()"] --> D1["AddGlobalTestEnvironment(MemoryLeakListener)"]
+        D1 --> D2["AddGlobalTestEnvironment(DefaultPrinter)"]
+        D2 --> D3["RunAllTests()"]
+    end
+
+    subgraph 阶段四["阶段四：RunAllTests() —— 执行循环"]
+        D3 --> E0{"EventListeners 列表"}
+        E0 --> E1["listener → OnTestProgramStart(total)"]
+        E1 --> E2["从 Registry::Instance().tests() 读取所有 TestInfo"]
+        E2 --> E3{"遍历 tests 向量<br/>for each TestInfo"}
+        E3 --> E4{"suite 切换?"}
+        E4 -- 是 --> E5["listener → OnTestSuiteEnd(old)<br/>listener → OnTestSuiteStart(new)"]
+        E5 --> E6
+        E4 -- 否 --> E6["listener → OnTestStart(info)"]
+        E6 --> E7["new TestContext context<br/>g_current_context = &context"]
+        E7 --> E8["test = info.factory()<br/>创建测试对象"]
+        E8 --> E9["test → SetUp()"]
+        E9 --> F1:::assert_entry
+    end
+
+    subgraph 阶段五["阶段五：断言结果流向 ★"]
+        F1["test → TestBody() 开始执行"]:::assert_entry
+        F1 --> F2["EXPECT_EQ(left, right) 宏展开"]
+        F2 --> F3["调用 Eq(left, right, 'left', 'right')"]
+        F3 --> F4{"left == right ?"}
+        F4 -- 是 --> F5["返回 AssertionResult { success=true, message='' }"]
+        F4 -- 否 --> F6["返回 AssertionResult { success=false, message='Expected... Which is: X vs Y' }"]
+
+        F5 --> F7
+        F6 --> F7["ReportAssertion(file, line, expression, result, fatal)"]
+        F7 --> F8["构造 AssertionRecord { success, fatal, file, line, expression, message }"]
+
+        F8 --> F9{"g_current_context<br/>!= nullptr ?"}
+        F9 -- 是 --> F10["g_current_context → AddAssertion(record)"]
+        F10 --> F11[("TestContext.result_.assertions<br/>push_back(record)")]
+
+        F9 -- 否 --> F12
+        F10 --> F12["NotifyAssertion(record)"]
+        F12 --> F13["遍历所有 listener → OnAssertionResult(record)<br/>DefaultPrinter: 失败则打印 file:line + 表达式 + 消息"]
+
+        F12 --> F14{"!success && fatal ?"}
+        F14 -- 是 --> F15["throw FatalFailure()"]
+        F14 -- 否 --> F16["TestBody() 继续执行<br/>下一个断言"]
+
+        F16 --> F2
+        F15 --> G1
+
+        style F1 fill:#fff3cd,stroke:#ffc107,stroke-width:3px
+        style F11 fill:#d4edda,stroke:#28a745
+        style F15 fill:#f8d7da,stroke:#dc3545,stroke-width:2px
+    end
+
+    subgraph 阶段六["阶段六：收尾 —— 统计与输出"]
+        G1["catch (const FatalFailure&)<br/>→ 当前测试体结束"] --> G2
+        F16 --> G2["try { test → TearDown() }<br/>catch(...) { 记录异常 }"]
+        G1 --> G2
+        G2 --> G3["listener → OnTestEnd(info, context.result())"]
+
+        G3 --> G4{"context.result().Passed() ?"}
+        G4 --> G5["检查: assertions 向量中<br/>所有 record.success == true ?"]
+
+        G4 -- 全部通过 --> G6["passed_count++<br/>DefaultPrinter 输出 [OK]"]
+        G4 -- 有失败 --> G7["failed_count++<br/>DefaultPrinter 输出 [FAILED] N failed assertions"]
+
+        G6 --> G8
+        G7 --> G8["g_current_context = nullptr"]
+        G8 --> E3
+
+        E3 -->|所有测试完成| H1["listener → OnTestSuiteEnd(last)"]
+        H1 --> H2["listener → OnTestProgramEnd(passed, failed)"]
+        H2 --> H3["return failed_count == 0 ? 0 : 1"]
+        H3 --> H4[("操作系统<br/>exit code")]
+    end
+```
+
+### 12.2 断言结果数据流向图（简化版）
+
+聚焦一个 `EXPECT_EQ` 调用，追踪数据从产生到最终输出的完整路径：
+
+```mermaid
+flowchart LR
+    subgraph 产生["1. 判断"]
+        A["EXPECT_EQ(Factorial(3), 6)"] --> B["Eq(6, 6, 'Factorial(3)', '6')"]
+        B --> C["AssertionResult<br/>{success: true, message: ''}"]
+    end
+
+    subgraph 包装["2. 包装"]
+        C --> D["ReportAssertion(__FILE__, __LINE__,<br/>'EXPECT_EQ(Factorial(3), 6)',<br/>result, fatal=false)"]
+        D --> E["AssertionRecord<br/>{success, fatal, file, line,<br/>expression, message}"]
+    end
+
+    subgraph 记录["3. 记录"]
+        E --> F["g_current_context →<br/>AddAssertion(record)"]
+        F --> G[("TestContext<br/>result_.assertions.push_back")]
+    end
+
+    subgraph 通知["4. 通知"]
+        E --> H["NotifyAssertion(record)"]
+        H --> I["遍历所有 EventListener"]
+        I --> J["DefaultPrinter::OnAssertionResult"]
+        J --> K{"success?"}
+        K -->|true| L["不输出 (静默)"]
+        K -->|false| M["输出 file:line + 期望值 vs 实际值"]
+    end
+
+    subgraph 统计["5. 统计"]
+        G --> N["OnTestEnd 时调用<br/>context.result().Passed()"]
+        N --> O{"所有 assertion<br/>success == true ?"}
+        O -->|是| P["passed_count++<br/>输出 [       OK ]"]
+        O -->|否| Q["failed_count++<br/>输出 [  FAILED  ]"]
+    end
+
+    style G fill:#d4edda,stroke:#28a745
+    style O fill:#cfe2ff,stroke:#0d6efd
+    style P fill:#d4edda,stroke:#28a745
+    style Q fill:#f8d7da,stroke:#dc3545
+```
+
+### 12.3 EXPECT vs ASSERT 分叉对比
+
+```mermaid
+flowchart TD
+    A["TestBody() 执行中..."] --> B["EXPECT_EQ(1+1, 3)"]
+    A --> C["ASSERT_EQ(2*3, 7)"]
+
+    B --> B1["Eq 返回 {success: false}"召集]
+    B1 --> B2["ReportAssertion(..., fatal=false)"]
+    B2 --> B3["写入 TestContext<br/>+ 通知监听器"]
+    B3 --> B4["fatal=false → 不抛异常"]
+    B4 --> B5["✅ 继续执行下一个断言"]
+    B5 --> B6["后续 EXPECT 仍能执行<br/>一次测试可收集多个失败"]
+
+    C --> C1["Eq 返回 {success: false}"]
+    C1 --> C2["ReportAssertion(..., fatal=true)"]
+    C2 --> C3["写入 TestContext<br/>+ 通知监听器"]
+    C3 --> C4["fatal=true → throw FatalFailure()"]
+    C4 --> C5["❌ 跳过后续断言"]
+    C5 --> C6["运行器 catch(FatalFailure&)<br/>→ TearDown() → 下一个测试"]
+
+    style B5 fill:#d4edda,stroke:#28a745
+    style C5 fill:#f8d7da,stroke:#dc3545
+    style C6 fill:#fff3cd,stroke:#ffc107
+```
+
+### 12.4 事件监听器在生命周期中的触发点
+
+```mermaid
+flowchart TD
+    subgraph 程序级["程序级别"]
+        P1["△ OnTestProgramStart(total_count)"]
+        P2["▽ OnTestProgramEnd(passed, failed)"]
+    end
+
+    subgraph 套件级["套件级别 (每个 Suite 各一次)"]
+        S1["△ OnTestSuiteStart(suite_name)"]
+        S2["▽ OnTestSuiteEnd(suite_name)"]
+    end
+
+    subgraph 案例级["案例级别 (每个 Test Case 各一次)"]
+        T1["△ OnTestStart(test_info)"]
+        T2["▽ OnTestEnd(test_info, result)"]
+    end
+
+    subgraph 断言级["断言级别 (每个断言各一次)"]
+        A1["● OnAssertionResult(record)"]
+    end
+
+    P1 --> S1 --> T1 --> A1 --> T2 --> S2 --> P2
+
+    T1 -->|"MemoryLeakListener<br/>before_ = alive_objects()"| T1
+    T2 -->|"MemoryLeakListener<br/>after > before_ ? 报告泄漏"| T2
+    A1 -->|"DefaultPrinter<br/>失败时打印 file:line"| A1
+```
+
+### 12.5 完整的端到端追踪（以 failure_demo 为例）
+
+以 `failure_demo_tests.cpp` 中 `ExpectBehaviorTest.ExpectFailureDoesNotStopCurrentTest` 为例：
+
+```mermaid
+sequenceDiagram
+    participant User as 用户代码<br/>failure_demo_tests.cpp
+    participant Macro as TEST 宏
+    participant Registry as Registry 单例
+    participant Runner as RunAllTests()
+    participant Context as TestContext
+    participant Assert as ReportAssertion
+    participant Listener as DefaultPrinter
+    participant OS as 操作系统
+
+    Note over User,OS: === main() 之前：静态注册 ===
+    Macro->>Registry: AddTest("ExpectBehaviorTest", "ExpectFailureDoesNotStopCurrentTest", factory)
+    Registry->>Registry: push_back(TestInfo)
+
+    Note over User,OS: === main() 执行 ===
+    Runner->>Runner: AddGlobalTestEnvironment(MemoryLeakListener)
+    Runner->>Runner: AddGlobalTestEnvironment(DefaultPrinter)
+    Runner->>Runner: RunAllTests()
+
+    Note over User,OS: === 遍历测试 ===
+    Runner->>Listener: OnTestProgramStart(total=3)
+    Runner->>Listener: OnTestSuiteStart("ExpectBehaviorTest")
+    Runner->>Listener: OnTestStart(info)
+
+    Note over User,OS: === 执行单个测试 ===
+    Runner->>Context: new TestContext
+    Runner->>Context: g_current_context = &context
+    Runner->>User: test = factory() → new ExpectBehaviorTest_ExpectFailure...
+    Runner->>User: test->SetUp()
+    Runner->>User: test->TestBody()
+
+    Note over User,OS: === 断言 1: EXPECT_EQ(1+1, 3) → 失败 ===
+    User->>Assert: Eq(2, 3, "1+1", "3") → {success:false, message:"Expected equality... Which is: 2 vs 3"}
+    Assert->>Context: AddAssertion(record {success:false, fatal:false})
+    Assert->>Listener: NotifyAssertion → OnAssertionResult
+    Listener-->>Listener: 打印: failure_demo_tests.cpp:6: Failure\nEXPECT_EQ(1+1, 3)\nExpected equality...\n  Which is: 2\n  Which is: 3
+    Assert->>Assert: fatal=false → 不抛异常
+
+    Note over User,OS: === 断言 2: EXPECT_EQ(str, str) → 通过 ===
+    User->>Assert: Eq("this line still runs", "this line still runs") → {success:true}
+    Assert->>Context: AddAssertion(record {success:true, fatal:false})
+    Assert->>Listener: NotifyAssertion → OnAssertionResult (success → 不输出)
+
+    Note over User,OS: === 测试结束 ===
+    Runner->>User: test->TearDown()
+    Runner->>Listener: OnTestEnd(info, context.result())
+    Listener->>Context: result.Passed()? → false (有 1 个失败断言)
+    Listener-->>Listener: 打印: [  FAILED  ] ExpectBehaviorTest.ExpectFailureDoesNotStopCurrentTest (1 failed assertions)
+    Runner->>Runner: failed_count++
+
+    Note over User,OS: === 继续下一个测试... ===
+    Runner->>Listener: OnTestProgramEnd(passed=1, failed=2)
+    Runner->>OS: return 1 (exit code)
+```
+
+### 12.6 核心组件关系图
+
+```mermaid
+classDiagram
+    class Test {
+        <<abstract>>
+        +SetUp()
+        +TearDown()
+        +TestBody()* pure virtual
+    }
+
+    class TestInfo {
+        +string suite_name
+        +string test_name
+        +TestFactory factory
+    }
+
+    class Registry {
+        -vector~TestInfo~ tests_
+        +Instance()$ Registry&
+        +AddTest(suite, name, factory) bool
+        +tests() vector~TestInfo~
+    }
+
+    class TestContext {
+        -TestResult result_
+        +AddAssertion(record)
+        +result() TestResult&
+    }
+
+    class TestResult {
+        -vector~AssertionRecord~ assertions
+        +Passed() bool
+        +FailedAssertionCount() int
+    }
+
+    class AssertionRecord {
+        +bool success
+        +bool fatal
+        +string file
+        +int line
+        +string expression
+        +string message
+    }
+
+    class AssertionResult {
+        +bool success
+        +string message
+    }
+
+    class EventListener {
+        <<interface>>
+        +OnTestProgramStart(int)
+        +OnTestProgramEnd(int,int)
+        +OnTestSuiteStart(string)
+        +OnTestSuiteEnd(string)
+        +OnTestStart(TestInfo)
+        +OnAssertionResult(AssertionRecord)
+        +OnTestEnd(TestInfo,TestResult)
+    }
+
+    class DefaultPrinter {
+        +输出 GoogleTest 风格日志
+    }
+
+    class MemoryLeakListener {
+        -size_t before_
+        +OnTestStart: 记录 alive_objects
+        +OnTestEnd: 比较并报告泄漏
+    }
+
+    class FatalFailure {
+        <<exception>>
+    }
+
+    Test <|-- "TEST 宏生成" : 继承
+    Test <|-- "用户 Fixture" : 继承
+    "用户 Fixture" <|-- "TEST_F 宏生成" : 继承
+
+    Registry o-- TestInfo : 存储
+    TestInfo --> Test : factory 创建
+
+    TestContext *-- TestResult
+    TestResult *-- AssertionRecord
+
+    EventListener <|-- DefaultPrinter : 实现
+    EventListener <|-- MemoryLeakListener : 实现
+
+    AssertionRecord ..> FatalFailure : fatal && !success → throw
+
+    "全局指针 g_current_context" --> TestContext : 指向当前
+
+    note for Registry "单例，main() 前已包含所有测试"
+    note for TestInfo "注册表条目：元数据+工厂"
+    note for TestContext "每个测试执行一次，new 一个实例"
+    note for EventListener "观察者模式：运行器广播，监听器响应"
 ```
 
 ---
