@@ -1,11 +1,22 @@
-# GoogleTest 原理学习笔记
+---
+title: GoogleTest简易实现
+published: 2026-07-05
+description: '对照GoogleTest做简易的复现'
+image: './images/GoogleTest.png'
+tags: [GoogleTest]
+category: 'GoogleTest'
+group: tech
+postType: post
+draft: false
+lang: ''
+---
 
-> 来源整理：
->
-> - GoogleTest 的通用测试框架原理
-> - 本目录 `mini_gtest/` 中的简易实现：`mini_gtest.h`、`main.cpp`、`pass_demo_tests.cpp`、`failure_demo_tests.cpp`
-> - `问答.md` 中学习过程里的问题与解答
->
+# GoogleTest 简易实现
+
+地址：[GoogleTest学习版](https://gitee.com/mical-517/google-test-learning-edition)
+
+
+
 > 这份笔记的目标不是逐行复刻真实 GoogleTest 源码，而是抓住 GoogleTest 最核心的框架思想：**测试注册、测试发现、测试执行、断言收集、事件通知、结果汇总**。
 
 ---
@@ -1372,103 +1383,7 @@ sequenceDiagram
     Runner->>OS: return 1 (exit code)
 ```
 
-### 12.6 核心组件关系图
 
-```mermaid
-classDiagram
-    class Test {
-        <<abstract>>
-        +SetUp()
-        +TearDown()
-        +TestBody()* pure virtual
-    }
-
-    class TestInfo {
-        +string suite_name
-        +string test_name
-        +TestFactory factory
-    }
-
-    class Registry {
-        -vector~TestInfo~ tests_
-        +Instance()$ Registry&
-        +AddTest(suite, name, factory) bool
-        +tests() vector~TestInfo~
-    }
-
-    class TestContext {
-        -TestResult result_
-        +AddAssertion(record)
-        +result() TestResult&
-    }
-
-    class TestResult {
-        -vector~AssertionRecord~ assertions
-        +Passed() bool
-        +FailedAssertionCount() int
-    }
-
-    class AssertionRecord {
-        +bool success
-        +bool fatal
-        +string file
-        +int line
-        +string expression
-        +string message
-    }
-
-    class AssertionResult {
-        +bool success
-        +string message
-    }
-
-    class EventListener {
-        <<interface>>
-        +OnTestProgramStart(int)
-        +OnTestProgramEnd(int,int)
-        +OnTestSuiteStart(string)
-        +OnTestSuiteEnd(string)
-        +OnTestStart(TestInfo)
-        +OnAssertionResult(AssertionRecord)
-        +OnTestEnd(TestInfo,TestResult)
-    }
-
-    class DefaultPrinter {
-        +输出 GoogleTest 风格日志
-    }
-
-    class MemoryLeakListener {
-        -size_t before_
-        +OnTestStart: 记录 alive_objects
-        +OnTestEnd: 比较并报告泄漏
-    }
-
-    class FatalFailure {
-        <<exception>>
-    }
-
-    Test <|-- "TEST 宏生成" : 继承
-    Test <|-- "用户 Fixture" : 继承
-    "用户 Fixture" <|-- "TEST_F 宏生成" : 继承
-
-    Registry o-- TestInfo : 存储
-    TestInfo --> Test : factory 创建
-
-    TestContext *-- TestResult
-    TestResult *-- AssertionRecord
-
-    EventListener <|-- DefaultPrinter : 实现
-    EventListener <|-- MemoryLeakListener : 实现
-
-    AssertionRecord ..> FatalFailure : fatal && !success → throw
-
-    "全局指针 g_current_context" --> TestContext : 指向当前
-
-    note for Registry "单例，main() 前已包含所有测试"
-    note for TestInfo "注册表条目：元数据+工厂"
-    note for TestContext "每个测试执行一次，new 一个实例"
-    note for EventListener "观察者模式：运行器广播，监听器响应"
-```
 
 ---
 

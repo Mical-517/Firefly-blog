@@ -2,9 +2,9 @@
 title: GoogleTest术语简介.md
 published: 2026-07-04
 description: '简单介绍一下GoogleTest中的概念'
-image: ''
+image: './images/GoogleTest.png'
 tags: [GoogleTest]
-category: 'c++环境配置'
+category: 'GoogleTest'
 group: tech
 postType: post
 draft: false
@@ -13,7 +13,7 @@ lang: ''
 
 # GoogleTest 术语分析
 
-> 本文档以 [视频教程字幕.md](./视频教程字幕.md) 和 [mini_gtest](./mini_gtest/) 简易实现为基础，系统梳理 GoogleTest 生态中的关键术语和概念。
+
 
 ---
 

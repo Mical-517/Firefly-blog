@@ -2,9 +2,9 @@
 title: GoogleTest分析
 published: 2026-07-04
 description: 'GoogleTest的核心知识点'
-image: ''
+image: './images/GoogleTest.png'
 tags: [GoogleTest]
-category: 'c++环境配置'
+category: 'GoogleTest'
 group: tech
 postType: post
 draft: false
