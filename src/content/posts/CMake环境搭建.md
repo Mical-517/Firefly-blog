@@ -1,7 +1,7 @@
 ---
 title: CMake环境搭建
 published: 2026-06-25
-description: 'c++环境配置中cmake环境搭建'
+description: 'CMake 从基础概念到 GoogleTest 实战：工作流程、CMakeLists.txt 模板、构建命令、运行单个测试、日常开发节奏与常见问题速查'
 image: ''
 tags: [CMake]
 category: 'c++环境配置'
@@ -329,13 +329,210 @@ cmake --build build/release
 
 答：Windows 和 WSL 是两套运行环境。Windows 的工具编译出 Windows PE 格式的程序；WSL 的工具编译出 Linux ELF 格式的程序。如果要在 WSL 里做 Linux C++ 项目，工具链也必须在 WSL 里安装。
 
-## 7. 参考资源
+## 7. 实战：CMake + GoogleTest 项目构建与测试
+
+前面的章节覆盖了 CMake 的基础概念和最小项目。本节以一个包含 GoogleTest 单元测试的真实项目为例，展示从零搭建到日常开发的完整流程。
+
+### 7.1 标准工程目录结构
+
+```
+MyProject/
+├── CMakeLists.txt
+├── include/
+│   ├── add.h
+│   └── hello.h
+├── src/
+│   ├── add.cpp
+│   ├── hello.cpp
+│   └── main.cpp
+├── tests/
+│   ├── add_test.cpp
+│   └── hello_test.cpp
+└── build/
+```
+
+核心设计：**业务代码编译成库，主程序和测试程序都链接这个库**。头文件搜索路径、编译选项集中在库目标上管理，app 和测试只负责复用。
+
+### 7.2 标准 CMakeLists.txt 模板
+
+```cmake
+cmake_minimum_required(VERSION 3.15)
+project(GoogleTestDemo LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+
+option(BUILD_TESTING "Build unit tests" ON)
+
+# 业务代码 → 库
+add_library(my_lib
+    hello.cpp
+    add.cpp
+)
+
+target_include_directories(my_lib
+    PUBLIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+)
+
+# 主程序
+add_executable(app
+    main.cpp
+)
+
+target_link_libraries(app
+    PRIVATE
+        my_lib
+)
+
+# 测试
+if(BUILD_TESTING)
+    include(CTest)
+    find_package(GTest CONFIG REQUIRED)
+    include(GoogleTest)
+
+    add_executable(test_lib
+        add_test.cpp
+        hello_test.cpp
+    )
+
+    target_link_libraries(test_lib
+        PRIVATE
+            my_lib
+            GTest::gtest_main
+    )
+
+    gtest_discover_tests(test_lib)
+endif()
+```
+
+**逐句解释与编译/链接/头文件的关系：**
+
+| 语句 | 阶段 | 作用 |
+|------|------|------|
+| `add_library(my_lib ...)` | 编译 | 把业务源文件编成一个库目标，是其他目标复用的中间产物 |
+| `target_include_directories(my_lib PUBLIC ...)` | 编译 | 把 include 加进头文件搜索路径。`PUBLIC` 表示链接了 my_lib 的目标也会继承此路径 —— 这是解决 `#include "xxx.h"` 找不到的关键 |
+| `add_executable(app ...)` | 编译+链接 | 定义主程序可执行文件 |
+| `add_executable(test_lib ...)` | 编译+链接 | 定义测试可执行文件 |
+| `target_link_libraries(app PRIVATE my_lib)` | 链接 | 把 my_lib 的实现链接进 app |
+| `target_link_libraries(test_lib PRIVATE my_lib GTest::gtest_main)` | 链接 | 同时链接业务库和 GoogleTest（gtest_main 提供 main 入口） |
+| `gtest_discover_tests(test_lib)` | 配置 | 构建后自动扫描所有 `TEST()` 用例，注册到 CTest |
+
+**关键认知：`target_link_libraries` 管链接（找实现），`target_include_directories` 管编译（找声明）。**
+
+链接库不能解决"编译时找不到头文件声明"的问题。如果 `main.cpp` 调用了 `add()` 但没 `#include "add.h"`，即使链接了 my_lib，编译器仍然会报"找不到标识符"。
+
+### 7.3 完整构建流程
+
+```bash
+# ===== 第一步：配置工程（在 build/ 目录执行） =====
+mkdir build && cd build
+cmake ..
+
+# ===== 第二步：编译 =====
+cmake --build . --config Debug
+
+# ===== 第三步（可选）：运行主程序 =====
+./Debug/app.exe
+```
+
+`cmake ..` 只负责生成工程文件，不编译源码。真正编译是在第二步 `cmake --build` 中完成的。
+
+Visual Studio 生成器下的产物位置：
+- 主程序：`build/Debug/app.exe`
+- 测试程序：`build/Debug/test_lib.exe`
+
+### 7.4 运行测试
+
+> 以下命令均在 `build/` 目录下执行。
+
+#### 运行全部测试
+
+```bash
+ctest -C Debug
+```
+
+#### 列出所有已注册的测试名
+
+```bash
+ctest -N -C Debug
+```
+
+CTest 中的测试名来自 `TEST(TestSuiteName, TestName)` 宏，格式为 `TestSuiteName.TestName`，例如 `AdditionTest.HandlesPositiveNumbers`。
+
+#### 运行单个测试 — 方式一：CTest 按名称过滤
+
+```bash
+ctest -C Debug -R AdditionTest.HandlesPositiveNumbers
+```
+
+`-R` 后跟正则表达式，匹配测试用例名。例如 `-R AdditionTest` 会跑 AdditionTest 下所有用例。
+
+#### 运行单个测试 — 方式二：直接运行 test_lib.exe + gtest_filter
+
+```bash
+# 绝对路径（可在任意目录执行）
+./Debug/test_lib.exe --gtest_filter=AdditionTest.HandlesPositiveNumbers
+
+# 通配符：跑 AdditionTest 下全部用例
+./Debug/test_lib.exe --gtest_filter=AdditionTest.*
+```
+
+直接运行 exe 方式更适合临时调试单个测试，CTest 方式更适合集成到 CI/CD。
+
+### 7.5 日常开发节奏
+
+| 步骤 | 命令 | 目录 |
+|------|------|------|
+| 1. 改代码 | 编辑业务代码或测试代码 | — |
+| 2. 构建 | `cmake --build . --config Debug` | `build/` |
+| 3. 跑全部测试 | `ctest -C Debug` | `build/` |
+| 4. 跑单个测试 | `ctest -C Debug -R 测试名` 或 `./Debug/test_lib.exe --gtest_filter=测试名` | `build/` |
+| 5. 改了 CMakeLists.txt | 重新 `cmake ..` 再构建 | `build/` |
+
+**核心原则：**
+- CMakeLists.txt 负责描述项目结构（写一次）
+- 日常开发只需要重复步骤 1-4
+- 只有 CMakeLists.txt 本身改动时才需要重新 `cmake ..`
+- 代码改了就 build，不需要每次重写 CMakeLists
+
+### 7.6 常见问题速查
+
+| 症状 | 原因 | 解决 |
+|------|------|------|
+| `ctest -R xxx` 显示 "No tests were found" | 正则没匹配到真实测试名（如写成了文件名 `add_test`） | 先执行 `ctest -N -C Debug` 列出真实测试名 |
+| 改了 CMakeLists.txt 但报旧错误 | build 目录缓存了旧配置 | 删除 build 目录，重新 `cmake ..` |
+| `error C3861: "xxx": 找不到标识符` | 源文件没 include 对应头文件 | 加上 `#include "xxx.h"` |
+| 编辑器红线但 cmake 能编过 | IntelliSense 没读到 CMake 配置 | 重新 CMake configure，或设置 `CMAKE_EXPORT_COMPILE_COMMANDS ON` |
+| 头文件报错消失后仍链接失败 | 库在但实现文件是空的或有重复定义 | 检查源文件内容是否完整、无重复函数定义 |
+
+## 8. 命令速查卡
+
+```bash
+# ===== 第一次 / 改了 CMakeLists.txt =====
+cd build && cmake ..
+
+# ===== 每次改代码后 =====
+cmake --build . --config Debug
+
+# ===== 运行主程序 =====
+./Debug/app.exe
+
+# ===== 运行全部测试 =====
+ctest -C Debug
+
+# ===== 运行单个测试 =====
+ctest -C Debug -R AdditionTest.HandlesPositiveNumbers
+./Debug/test_lib.exe --gtest_filter=AdditionTest.HandlesPositiveNumbers
+
+# ===== 列出所有测试 =====
+ctest -N -C Debug
+```
+
+## 9. 参考资源
 
 - VS Code 官方 CMake 教程：https://code.visualstudio.com/docs/cpp/cmake-linux
 - CMake 官方教程：https://cmake.org/cmake/help/latest/guide/tutorial/index.html
 - CMake Presets 官方文档：https://cmake.org/cmake/help/latest/manual/cmake-presets.7.html
 - Ninja 构建系统：https://ninja-build.org/
-
-------
-
-这篇博客已经完整覆盖了 CMake 从产生背景到实际配置的全过程，以及你在部署过程中遇到并解决的所有关键疑惑。如果你在 WSL 恢复正常后，想把它存到工作区的 `outputs/` 目录里，或者再补一本书籍推荐，告诉我就行。
+- GoogleTest 官方仓库：https://github.com/google/googletest
