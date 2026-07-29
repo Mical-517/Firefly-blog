@@ -6,7 +6,6 @@ image: './images/GoogleTest.png'
 tags: [GoogleTest]
 category: 'GoogleTest'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

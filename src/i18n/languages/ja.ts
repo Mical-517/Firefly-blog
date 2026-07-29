@@ -17,6 +17,10 @@ export const ja: Translation = {
 
 	[Key.tags]: "タグ",
 	[Key.categories]: "カテゴリ",
+	[Key.thoughts]: "感想記録",
+	[Key.techRecords]: "技術記録",
+	[Key.groupNavigation]: "コンテンツグループ",
+	[Key.allPostsGroup]: "全記事",
 	[Key.allCategories]: "すべてのカテゴリ",
 	[Key.allTags]: "すべてのタグ",
 	[Key.recentPosts]: "最近の投稿",

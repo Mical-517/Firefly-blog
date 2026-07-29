@@ -6,7 +6,6 @@ image: ''
 tags: [Hermes]
 category: 'Agent'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

@@ -6,7 +6,6 @@ image: './images/CMake.png'
 tags: [CMake_Study]
 category: 'CMake_Study'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

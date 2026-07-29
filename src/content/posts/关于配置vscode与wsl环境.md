@@ -6,7 +6,6 @@ image: ''
 tags: [c++学习：环境搭建]
 category: 'c++环境配置'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

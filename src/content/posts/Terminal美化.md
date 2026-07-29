@@ -6,7 +6,6 @@ image: 'https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/202606241451951.p
 tags: [Terminal]
 category: '美化技术'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

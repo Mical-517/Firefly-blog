@@ -6,7 +6,6 @@ image: ''
 tags: [博客]
 category: 博客指南
 group: tech
-postType: post
 draft: false 
 lang: ''
 ---

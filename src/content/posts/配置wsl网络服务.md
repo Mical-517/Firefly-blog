@@ -6,7 +6,6 @@ image: ''
 tags: [wsl代理网络设置]
 category: 'c++环境配置'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

@@ -13,7 +13,6 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 	const links: (NavBarLink | LinkPreset)[] = [
 		// 主页
 		LinkPreset.Home,
-		LinkPreset.Notes,
 	];
 
 	// 文章及其子菜单

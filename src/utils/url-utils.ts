@@ -82,9 +82,6 @@ export function getGroupedCategoryUrl(
 	return url(`/archive/?category=${encodedCategory}`);
 }
 
-export function getNotesUrl(): string {
-	return url("/notes/");
-}
 
 export function getDir(path: string): string {
 	// 移除文件扩展名

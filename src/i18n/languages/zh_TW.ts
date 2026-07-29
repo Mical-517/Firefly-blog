@@ -17,6 +17,10 @@ export const zh_TW: Translation = {
 
 	[Key.tags]: "標籤",
 	[Key.categories]: "分類",
+	[Key.thoughts]: "感想記錄",
+	[Key.techRecords]: "技術記錄",
+	[Key.groupNavigation]: "內容分組",
+	[Key.allPostsGroup]: "全部文章",
 	[Key.allCategories]: "所有分類",
 	[Key.allTags]: "所有標籤",
 	[Key.recentPosts]: "最新文章",

@@ -6,7 +6,6 @@ description: 在Firefly中使用表达性代码的代码块在 Markdown 中的�
 tags: [Markdown, Firefly]
 category: 文章示例
 group: tech
-postType: post
 draft: false
 image: ./images/firefly3.avif
 ---

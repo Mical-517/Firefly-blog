@@ -17,6 +17,10 @@ export const ru: Translation = {
 
 	[Key.tags]: "Теги",
 	[Key.categories]: "Категории",
+	[Key.thoughts]: "Размышления",
+	[Key.techRecords]: "Техзаписи",
+	[Key.groupNavigation]: "Группа контента",
+	[Key.allPostsGroup]: "Все записи",
 	[Key.allCategories]: "Все категории",
 	[Key.allTags]: "Все теги",
 	[Key.recentPosts]: "Последние посты",

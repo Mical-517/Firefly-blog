@@ -4,10 +4,8 @@ import { i18n } from "@i18n/translation";
 import { getCategoryUrl, getGroupedCategoryUrl } from "@utils/url-utils";
 
 export type PostGroup = "thoughts" | "tech";
-export type PostType = "post" | "note";
 
 export type ContentQuery = {
-	includeNotes?: boolean;
 	group?: PostGroup;
 	category?: string;
 	tag?: string;
@@ -29,17 +27,6 @@ export type GroupedCategory = {
 	url: string;
 };
 
-export type NoteDateGroup = {
-	dateKey: string;
-	date: Date;
-	label: string;
-	items: CollectionEntry<"posts">[];
-};
-
-export type NoteAdjacentPosts = {
-	prev: CollectionEntry<"posts"> | null;
-	next: CollectionEntry<"posts"> | null;
-};
 
 function getGroupName(group: PostGroup): string {
 	return group === "thoughts" ? i18n(I18nKey.thoughts) : i18n(I18nKey.techRecords);
@@ -56,9 +43,6 @@ function matchesQuery(
 	post: CollectionEntry<"posts">,
 	query: ContentQuery = {},
 ): boolean {
-	if (!query.includeNotes && post.data.postType === "note") {
-		return false;
-	}
 
 	if (query.group && post.data.group !== query.group) {
 		return false;
@@ -169,7 +153,6 @@ export async function getCategoryList(
 		return import.meta.env.PROD ? data.draft !== true : true;
 	});
 	const filteredPosts = allBlogPosts.filter((post) => {
-		if (post.data.postType === "note") return false;
 		if (group) return post.data.group === group;
 		return true;
 	});
@@ -262,7 +245,6 @@ export async function getGroupList(): Promise<GroupInfo[]> {
 	};
 
 	allBlogPosts.forEach((post) => {
-		if (post.data.postType === "note") return;
 		const group = normalizeGroup(post.data.group) || "tech";
 		counts[group] += 1;
 	});
@@ -275,62 +257,6 @@ export async function getGroupList(): Promise<GroupInfo[]> {
 	}));
 }
 
-export async function getNotesList(): Promise<CollectionEntry<"posts">[]> {
-	return getRawSortedPosts({ includeNotes: true }).then((posts) =>
-		posts.filter((post) => post.data.postType === "note"),
-	);
-}
-
-function formatNoteDateKey(date: Date): string {
-	const year = date.getFullYear();
-	const month = String(date.getMonth() + 1).padStart(2, "0");
-	const day = String(date.getDate()).padStart(2, "0");
-	return `${year}-${month}-${day}`;
-}
-
-function formatNoteDateLabel(date: Date): string {
-	return new Intl.DateTimeFormat("zh-CN", {
-		year: "numeric",
-		month: "long",
-		day: "numeric",
-		weekday: "long",
-	}).format(date);
-}
-
-export async function getGroupedNotesByDate(): Promise<NoteDateGroup[]> {
-	const notes = await getNotesList();
-	const grouped = new Map<string, CollectionEntry<"posts">[]>();
-
-	for (const note of notes) {
-		const key = formatNoteDateKey(note.data.published);
-		const bucket = grouped.get(key) || [];
-		bucket.push(note);
-		grouped.set(key, bucket);
-	}
-
-	return Array.from(grouped.entries()).map(([dateKey, items]) => ({
-		dateKey,
-		date: items[0].data.published,
-		label: formatNoteDateLabel(items[0].data.published),
-		items,
-	}));
-}
-
-export async function getAdjacentNotes(
-	currentId: string,
-): Promise<NoteAdjacentPosts> {
-	const notes = await getNotesList();
-	const currentIndex = notes.findIndex((note) => note.id === currentId);
-
-	if (currentIndex === -1) {
-		return { prev: null, next: null };
-	}
-
-	return {
-		prev: currentIndex < notes.length - 1 ? notes[currentIndex + 1] : null,
-		next: currentIndex > 0 ? notes[currentIndex - 1] : null,
-	};
-}
 
 /**
  * 对标题进行分词，支持中英文混合
@@ -381,8 +307,8 @@ export async function getRelatedPosts(
 		(p) =>
 			p.id !== currentPost.id &&
 			!p.data.password &&
-			p.data.postType !== "note",
-	);
+			!p.data.password,
+		);
 
 	const currentTags = new Set(currentPost.data.tags || []);
 	const currentTokens = tokenizeTitle(currentPost.data.title);

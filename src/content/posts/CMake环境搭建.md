@@ -6,7 +6,6 @@ image: ''
 tags: [CMake]
 category: 'c++环境配置'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---

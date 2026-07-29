@@ -6,7 +6,6 @@ image: './images/GoogleTest.png'
 tags: [GoogleTest, CMake, vcpkg, '环境配置']
 category: '环境配置'
 group: tech
-postType: post
 draft: false
 lang: ''
 ---
