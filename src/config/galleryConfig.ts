@@ -42,6 +42,13 @@ export const galleryConfig: GalleryConfig = {
 			date:"2026-07-03",
 			tags:["StreetFight"],
 		},
+		{
+			id: "favorites",
+			name: "收藏夹",
+			description: "来自阿里云 OSS 的收藏图片（picture/favorites/）",
+			date: "2026-09-16",
+			tags: ["收藏"],
+		},
 	],
 
 	// 瀑布流最小列宽(px)，浏览器根据容器宽度自动计算列数，默认 240

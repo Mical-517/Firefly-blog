@@ -1,0 +1,5 @@
+# 该文件由 scripts/sync-oss-gallery.ts 自动生成，请勿手动编辑
+# 每行一个图片 URL，支持 jpg/png/webp/avif/gif 后缀
+# 重新同步：pnpm sync-oss
+
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/20260916192310269.png
