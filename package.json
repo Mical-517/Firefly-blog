@@ -15,7 +15,9 @@
     "lint": "biome check --write ./src",
     "preinstall": "npx only-allow pnpm",
     "icons": "node scripts/generate-icons.js",
-    "lqips": "npx tsx scripts/generate-lqips.ts"
+    "lqips": "npx tsx scripts/generate-lqips.ts",
+    "sync-oss": "node --experimental-strip-types scripts/sync-oss-gallery.ts",
+    "test:oss": "node --test --experimental-strip-types scripts/sync-oss-gallery.test.ts"
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -41,6 +43,7 @@
     "@napi-rs/wasm-runtime": "^1.1.4",
     "@swup/astro": "^1.8.0",
     "@tailwindcss/typography": "^0.5.16",
+    "ali-oss": "^6.23.0",
     "astro": "6.4.4",
     "astro-expressive-code": "^0.42.0",
     "astro-icon": "^1.1.5",
@@ -80,6 +83,7 @@
     "@iconify-json/mdi": "^1.2.3",
     "@iconify-json/svg-spinners": "^1.2.4",
     "@tailwindcss/vite": "^4.3.0",
+    "@types/ali-oss": "^6.23.3",
     "@types/hast": "^3.0.4",
     "@types/mdast": "^4.0.4",
     "@types/qrcode": "^1.5.6",
