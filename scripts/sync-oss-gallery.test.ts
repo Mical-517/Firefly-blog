@@ -1,13 +1,27 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
-import { filterImageObjects, toObjectUrl, toUrlsFileContent } from "./sync-oss-core.ts";
+import {
+	buildGeneratedAlbumsFile,
+	discoverAlbumIds,
+	excludeManualConflicts,
+	filterImageObjects,
+	parseAlbumMeta,
+	resolveMetaCover,
+	toObjectUrl,
+	toUrlsFileContent,
+} from "./sync-oss-core.ts";
 
 // 注意：这些是纯函数测试，不依赖网络，也不依赖 OSS SDK
 
 describe("toObjectUrl", () => {
 	it("用 https + 自定义域名 + region 拼接对象 URL", () => {
 		assert.equal(
-			toObjectUrl("images.gallery.example.com", "oss-cn-hangzhou", "my-bucket", "albums/summer/01.jpg"),
+			toObjectUrl(
+				"images.gallery.example.com",
+				"oss-cn-hangzhou",
+				"my-bucket",
+				"albums/summer/01.jpg",
+			),
 			"https://images.gallery.example.com/albums/summer/01.jpg",
 		);
 	});
@@ -21,21 +35,36 @@ describe("toObjectUrl", () => {
 
 	it("去掉前缀路径中的斜杠冗余", () => {
 		assert.equal(
-			toObjectUrl("img.example.com", "oss-cn-hangzhou", "b", "/albums/x/01.webp"),
+			toObjectUrl(
+				"img.example.com",
+				"oss-cn-hangzhou",
+				"b",
+				"/albums/x/01.webp",
+			),
 			"https://img.example.com/albums/x/01.webp",
 		);
 	});
 
 	it("key 中的中文与空格按路径段编码", () => {
 		assert.equal(
-			toObjectUrl("img.example.com", "oss-cn-hangzhou", "b", "albums/我的照片/01 号.jpg"),
+			toObjectUrl(
+				"img.example.com",
+				"oss-cn-hangzhou",
+				"b",
+				"albums/我的照片/01 号.jpg",
+			),
 			"https://img.example.com/albums/%E6%88%91%E7%9A%84%E7%85%A7%E7%89%87/01%20%E5%8F%B7.jpg",
 		);
 	});
 
 	it("已有百分号编码的 key 不会被双重编码", () => {
 		assert.equal(
-			toObjectUrl("img.example.com", "oss-cn-hangzhou", "b", "albums/my%20photo.jpg"),
+			toObjectUrl(
+				"img.example.com",
+				"oss-cn-hangzhou",
+				"b",
+				"albums/my%20photo.jpg",
+			),
 			"https://img.example.com/albums/my%20photo.jpg",
 		);
 	});
@@ -86,5 +115,191 @@ describe("toUrlsFileContent", () => {
 			"https://img.example.com/albums/summer/01.jpg",
 			"https://img.example.com/albums/summer/02.webp",
 		]);
+	});
+});
+
+describe("discoverAlbumIds", () => {
+	it("只取相册根的直接子目录名，忽略更深层级", () => {
+		assert.deepEqual(
+			discoverAlbumIds("picture/favorites/", [
+				"picture/favorites/anime/",
+				"picture/favorites/wallpaper/",
+				"picture/favorites/anime/2024/",
+				"picture/notes/",
+			]),
+			["anime", "wallpaper"],
+		);
+	});
+
+	it("容忍根前缀不带尾斜杠", () => {
+		assert.deepEqual(
+			discoverAlbumIds("picture/favorites", ["picture/favorites/anime/"]),
+			["anime"],
+		);
+	});
+
+	it("结果按名称排序且去重", () => {
+		assert.deepEqual(
+			discoverAlbumIds("root/", ["root/b/", "root/a/", "root/b/"]),
+			["a", "b"],
+		);
+	});
+
+	it("根自身与不含子目录时返回空数组", () => {
+		assert.deepEqual(discoverAlbumIds("root/", ["root/", "other/x/"]), []);
+	});
+});
+
+describe("parseAlbumMeta", () => {
+	it("元数据缺失时回退到目录名", () => {
+		assert.deepEqual(parseAlbumMeta(null, "anime"), { name: "anime" });
+	});
+
+	it("非法 JSON 时回退到目录名", () => {
+		assert.deepEqual(parseAlbumMeta("{ not json", "anime"), { name: "anime" });
+	});
+
+	it("读取合法字段并保留标签数组", () => {
+		const meta = parseAlbumMeta(
+			JSON.stringify({
+				name: "动漫",
+				description: "追番截图",
+				date: "2026-09-01",
+				location: "B站",
+				tags: ["anime", "二次元"],
+				cover: "cover.jpg",
+			}),
+			"anime",
+		);
+		assert.deepEqual(meta, {
+			name: "动漫",
+			description: "追番截图",
+			date: "2026-09-01",
+			location: "B站",
+			tags: ["anime", "二次元"],
+			cover: "cover.jpg",
+		});
+	});
+
+	it("丢弃类型不符的字段，并忽略 id 字段（id 由目录名决定）", () => {
+		const meta = parseAlbumMeta(
+			JSON.stringify({ name: 123, tags: "anime", id: "hacked" }),
+			"anime",
+		);
+		assert.deepEqual(meta, { name: "anime" });
+	});
+
+	it("标签数组中的非字符串项被剔除", () => {
+		const meta = parseAlbumMeta(
+			JSON.stringify({ name: "动漫", tags: ["anime", 42, null] }),
+			"anime",
+		);
+		assert.deepEqual(meta.tags, ["anime"]);
+	});
+});
+
+describe("buildGeneratedAlbumsFile", () => {
+	it("生成可被 TS 直接导入的相册数组文件", () => {
+		const content = buildGeneratedAlbumsFile([
+			{ id: "anime", name: "动漫" },
+			{ id: "wallpaper", name: "wallpaper" },
+		]);
+		assert.match(content, /export const galleryOssAlbums: GalleryAlbum\[\]/);
+		assert.match(
+			content,
+			/import type \{ GalleryAlbum \} from "@\/types\/config";/,
+		);
+		assert.match(content, /"id": "anime"/);
+		assert.match(content, /"id": "wallpaper"/);
+	});
+
+	it("空相册清单生成空数组", () => {
+		const content = buildGeneratedAlbumsFile([]);
+		assert.match(
+			content,
+			/export const galleryOssAlbums: GalleryAlbum\[\] = \[\];/,
+		);
+	});
+
+	it("输出是确定性的（与输入顺序无关的排序由调用方保证，此处原样输出）", () => {
+		const a = buildGeneratedAlbumsFile([{ id: "a", name: "a" }]);
+		const b = buildGeneratedAlbumsFile([{ id: "a", name: "a" }]);
+		assert.equal(a, b);
+	});
+});
+
+describe("excludeManualConflicts", () => {
+	it("保留不与手写冲突的自动发现相册", () => {
+		const { kept, conflicts } = excludeManualConflicts(
+			[{ id: "anime" }, { id: "wallpaper" }],
+			["manual-one"],
+		);
+		assert.deepEqual(
+			kept.map((a) => a.id),
+			["anime", "wallpaper"],
+		);
+		assert.deepEqual(conflicts, []);
+	});
+
+	it("剔除与手写同 id 的相册并报告冲突", () => {
+		const { kept, conflicts } = excludeManualConflicts(
+			[{ id: "anime" }, { id: "wallpaper" }],
+			["anime"],
+		);
+		assert.deepEqual(
+			kept.map((a) => a.id),
+			["wallpaper"],
+		);
+		assert.deepEqual(conflicts, ["anime"]);
+	});
+
+	it("重复运行幂等：已生成的相册再次传入仍被保留（不会被当成手写而吞噬）", () => {
+		// 第一次发现得到的清单
+		const first = excludeManualConflicts(
+			[{ id: "anime" }, { id: "wallpaper" }],
+			[],
+		);
+		// 第二次发现得到同样的清单，手写仍为空 —— 结果应完全一致
+		const second = excludeManualConflicts(first.kept, []);
+		assert.deepEqual(
+			second.kept.map((a) => a.id),
+			["anime", "wallpaper"],
+		);
+		assert.deepEqual(second.conflicts, []);
+	});
+
+	it("空输入返回空结果", () => {
+		const { kept, conflicts } = excludeManualConflicts([], ["x"]);
+		assert.deepEqual(kept, []);
+		assert.deepEqual(conflicts, []);
+	});
+});
+
+describe("resolveMetaCover", () => {
+	const toUrl = (key: string) => `https://cdn.example.com/${key}`;
+
+	it("未提供时不返回封面", () => {
+		assert.equal(resolveMetaCover(undefined, "root/anime/", toUrl), undefined);
+	});
+
+	it("完整 http(s) 地址原样返回", () => {
+		assert.equal(
+			resolveMetaCover("https://other.com/a.jpg", "root/anime/", toUrl),
+			"https://other.com/a.jpg",
+		);
+	});
+
+	it("相对文件名拼到相册前缀上（修正只写文件名会 404 的问题）", () => {
+		assert.equal(
+			resolveMetaCover("cover.jpg", "root/anime/", toUrl),
+			"https://cdn.example.com/root/anime/cover.jpg",
+		);
+	});
+
+	it("容忍前缀缺少尾斜杠与文件名前置的 ./", () => {
+		assert.equal(
+			resolveMetaCover("./cover.webp", "root/anime", toUrl),
+			"https://cdn.example.com/root/anime/cover.webp",
+		);
 	});
 });

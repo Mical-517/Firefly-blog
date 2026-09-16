@@ -1,4 +1,4 @@
-// OSS 相册同步的核心纯函数：URL 拼接、图片过滤、urls.txt 内容生成。
+// OSS 相册同步的核心纯函数：URL 拼接、图片过滤、urls.txt 内容生成、相册发现与元数据解析。
 // 不依赖网络与 OSS SDK，便于单元测试。
 
 export const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
@@ -10,8 +10,23 @@ export const IMAGE_EXTENSIONS: ReadonlySet<string> = new Set([
 	".gif",
 ]);
 
+/** 相册元数据文件名，存放在每个相册目录内。 */
+export const META_FILE_NAME: string = "meta.json";
+
 export interface OssObject {
 	key: string;
+}
+
+/** 自动发现相册的元数据；字段与 GalleryAlbum 对齐，但 id 由目录名决定，不在此处。 */
+export interface OssAlbumMeta {
+	name: string;
+	description?: string;
+	date?: string;
+	location?: string;
+	tags?: string[];
+	cover?: string;
+	password?: string;
+	passwordHint?: string;
 }
 
 /**
@@ -60,4 +75,113 @@ export function toUrlsFileContent(urls: string[]): string {
 		"",
 	];
 	return [...header, ...urls, ""].join("\n");
+}
+
+/**
+ * 从子目录前缀列表中提取自动发现相册的 id。
+ * 只认相册根的直接子目录（更深层级不计），结果去重并按名称排序。
+ */
+export function discoverAlbumIds(
+	rootPrefix: string,
+	folderPrefixes: string[],
+): string[] {
+	const root = rootPrefix.endsWith("/") ? rootPrefix : `${rootPrefix}/`;
+	const names = folderPrefixes
+		.filter((p) => p.startsWith(root))
+		.map((p) => p.slice(root.length).replace(/\/+$/, ""))
+		.filter((name) => name !== "" && !name.includes("/"));
+	return [...new Set(names)].sort();
+}
+
+/**
+ * 解析相册元数据文件内容。缺失、非法 JSON 或字段类型不符时回退。
+ * id 由目录名决定，元数据里的 id 字段一律忽略。
+ */
+export function parseAlbumMeta(
+	raw: string | null,
+	fallbackName: string,
+): OssAlbumMeta {
+	if (!raw) return { name: fallbackName };
+
+	let parsed: unknown;
+	try {
+		parsed = JSON.parse(raw);
+	} catch {
+		return { name: fallbackName };
+	}
+	if (typeof parsed !== "object" || parsed === null) {
+		return { name: fallbackName };
+	}
+
+	const source = parsed as Record<string, unknown>;
+	const meta: OssAlbumMeta = {
+		name:
+			typeof source.name === "string" && source.name
+				? source.name
+				: fallbackName,
+	};
+	for (const field of [
+		"description",
+		"date",
+		"location",
+		"cover",
+		"password",
+		"passwordHint",
+	] as const) {
+		const value = source[field];
+		if (typeof value === "string" && value) meta[field] = value;
+	}
+	if (Array.isArray(source.tags)) {
+		const tags = source.tags.filter(
+			(t): t is string => typeof t === "string" && t !== "",
+		);
+		if (tags.length > 0) meta.tags = tags;
+	}
+	return meta;
+}
+
+/**
+ * 把 meta.json 里的 cover 解析为可用的图片 URL。
+ * 已是 http(s) 的完整地址原样返回；否则视为相册目录下的文件名，拼到相册前缀上。
+ */
+export function resolveMetaCover(
+	cover: string | undefined,
+	albumPrefix: string,
+	toUrl: (key: string) => string,
+): string | undefined {
+	if (!cover) return undefined;
+	if (/^https?:\/\//i.test(cover)) return cover;
+	const prefix = albumPrefix.endsWith("/") ? albumPrefix : `${albumPrefix}/`;
+	return toUrl(`${prefix}${cover.replace(/^\.?\//, "")}`);
+}
+
+/**
+ * 剔除与手写相册同 id 的自动发现相册（手写优先）。
+ * 只应拿「手写相册 id」来比对，不能拿合并后的全量清单，否则会把上次生成的结果也当成手写而全部剔除。
+ */
+export function excludeManualConflicts<T extends { id: string }>(
+	discovered: readonly T[],
+	manualIds: readonly string[],
+): { kept: T[]; conflicts: string[] } {
+	const manual = new Set(manualIds);
+	const kept: T[] = [];
+	const conflicts: string[] = [];
+	for (const album of discovered) {
+		if (manual.has(album.id)) conflicts.push(album.id);
+		else kept.push(album);
+	}
+	return { kept, conflicts };
+}
+
+/** 生成自动发现相册的 TS 文件内容；JSON 是合法 TS 表达式，故直接序列化。 */
+export function buildGeneratedAlbumsFile(albums: readonly unknown[]): string {
+	const body = JSON.stringify(albums, null, "\t");
+	return [
+		"// 本文件由 scripts/sync-oss-gallery.ts --discover 自动生成，请勿手动编辑",
+		"// 重新生成：pnpm sync-oss --discover",
+		'import type { GalleryAlbum } from "@/types/config";',
+		"",
+		`export const galleryOssAlbums: GalleryAlbum[] = ${body};`,
+		"",
+	].join("\n");
 }
