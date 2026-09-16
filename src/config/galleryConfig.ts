@@ -16,14 +16,6 @@ export const galleryConfig: GalleryConfig = {
 		// passwordHint: 密码提示，设置后在输入密码错误时显示（可选，需配合password使用）
 		// 每添加一个数组项就相当于添加了一个相册，记得在 public/gallery/ 目录下创建对应的子目录并放入图片
 		{
-			id:"streetfight",
-			name:"StreetFight",
-			description:"街霸六相册",
-			location:"StreeghtFight six",
-			date:"2026-07-03",
-			tags:["StreetFight"],
-		},
-		{
 			id: "favorites",
 			name: "收藏夹",
 			description: "来自阿里云 OSS 的收藏图片（picture/favorites/）",
