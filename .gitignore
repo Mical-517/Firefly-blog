@@ -37,3 +37,7 @@ Firefly-docs/
 cache/
 package/
 .obsidian/
+
+# local tool artifacts (浏览器截图/测试工具残留，不参与构建)
+.playwright-cli/
+output/
