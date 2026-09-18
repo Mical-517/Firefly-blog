@@ -2,4 +2,9 @@
 // 重新生成：pnpm sync-oss --discover
 import type { GalleryAlbum } from "@/types/config";
 
-export const galleryOssAlbums: GalleryAlbum[] = [];
+export const galleryOssAlbums: GalleryAlbum[] = [
+	{
+		"id": "wallpaper",
+		"name": "wallpaper"
+	}
+];
