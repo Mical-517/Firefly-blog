@@ -250,6 +250,9 @@ export const ru: Translation = {
 	[Key.postListLayoutList]: "Список",
 	[Key.postListLayoutGrid]: "Сетка",
 
+	[Key.widgets]: "Виджеты",
+	[Key.immersiveHome]: "Полноэкранная главная",
+
 	// Страница спонсоров
 	[Key.sponsor]: "Спонсор",
 	[Key.sponsorTitle]: "Поддержать меня",

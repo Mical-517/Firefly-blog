@@ -3,6 +3,25 @@
 .custom-md {
   overflow-wrap: break-word;
 
+  /*
+   * 正文字号。
+   * 霞鹭文楷是楷体，笔画细、字面（视觉字号）明显小于同 px 的黑体，沿用 prose-base 的
+   * 16px 会显得偏小，因此上调一档；行高也放宽，给楷体留出呼吸感。
+   *
+   * 这里用 px 而非 rem：站点把根字号定死在 text-[14px] md:text-[16px]（见 Layout.astro），
+   * 移动端根字号只有 14px，若用 rem 会连带缩到 15px 以下，失去"适合阅读"的意义。
+   * 想整体调节阅读字号，只改这两个变量即可。
+   */
+  --md-font-size: 17px;
+  --md-line-height: 1.85;
+
+  font-size: var(--md-font-size);
+  line-height: var(--md-line-height);
+
+  @media (min-width: 768px) {
+    --md-font-size: 20px;
+  }
+
   body.sticky-navbar & {
     [id] {
       scroll-margin-top: 5.5rem;

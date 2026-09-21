@@ -41,16 +41,17 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 桌面背景图片（支持单张或多张随机）
 		// desktop: "assets/images/DesktopWallpaper/d1.avif",
 		desktop: [
-			"assets/images/DesktopWallpaper/wall1.png",
-			"assets/images/DesktopWallpaper/wall2.png",
-			"assets/images/DesktopWallpaper/wall3.png",
+			"assets/images/DesktopWallpaper/garden-light.jpg",
+			"assets/images/DesktopWallpaper/anime-red.jpg",
+			"assets/images/DesktopWallpaper/silhouette-earth.jpg",
+			"assets/images/DesktopWallpaper/sword-hand.jpg",
+			"assets/images/DesktopWallpaper/autobots.jpg",
 		],
 		// 移动背景图片（支持单张或多张随机）
 		// mobile: "assets/images/MobileWallpaper/m1.avif",
 		mobile: [
-			"assets/images/MobileWallpaper/a1.png",
-			"assets/images/MobileWallpaper/q2.png",
-
+			"assets/images/MobileWallpaper/m-anime-red.jpg",
+			"assets/images/MobileWallpaper/m-garden-light.jpg",
 		],
 	},
 	// 横幅壁纸和全屏壁纸共享配置
@@ -63,21 +64,16 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 			enable: true,
 			// 是否允许用户通过控制面板切换横幅标题显示
 			switchable: true,
-			// 主页横幅主标题
-			title: "Above acclaim and scorn,I abide by my own compass.",
+			// 主页横幅主标题（格言，小字呈现，尽量不遮挡壁纸）
+			title: "别让过去困住现在。",
 			// 主页横幅主标题字体大小
-			titleSize: "3.8rem",
-			// 主页横幅副标题
+			titleSize: "1.4rem",
+			// 主页横幅副标题（打字机循环文案）
 			subtitle: [
-				"Free in mind, calm in stride.",
-				"Still the noise, trust the pace.",
-				"Let go of unrest, hold fast to peace.",
-				"Upon Lighted Fyrefly, I Soon Gaze",
-				"Steady steps outrun haste.",
-				"In Finalized Morrow, I Full Bloom",
+				"在 Mical Space 里探索",
 			],
 			// 主页横幅副标题字体大小
-			subtitleSize: "1.5rem",
+			subtitleSize: "2.2rem",
 			typewriter: {
 				// 是否启用打字机效果
 				// 打字机开启 → 循环显示所有副标题
@@ -94,22 +90,22 @@ export const backgroundWallpaper: BackgroundWallpaperConfig = {
 		// 导航栏配置
 		navbar: {
 			// 导航栏透明模式："semi" 半透明，"full" 完全透明，"semifull" 动态透明
-			transparentMode: "semi",
+			transparentMode: "semifull",
 			// 是否开启毛玻璃模糊效果，开启可能会影响页面性能，如果不开启则是半透明，请根据自己的喜好开启
 			enableBlur: true,
 			// 毛玻璃模糊度
-			blur: 5,
+			blur: 12,
 		},
 		// 水波纹动画效果配置，开启会影响页面性能，请根据自己的喜好开启
 		waves: {
 			enable: {
 				// 桌面端是否启用水波纹动画效果
-				desktop: true,
+				desktop: false,
 				// 移动端是否启用水波纹动画效果
-				mobile: true,
+				mobile: false,
 			},
 			// 是否允许用户通过控制面板切换水波纹动画
-			switchable: true,
+			switchable: false,
 		},
 		// 渐变过渡效果配置，当水波纹关闭时自动启用，提供壁纸底部到背景色的平滑过渡
 		gradient: {

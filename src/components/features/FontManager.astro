@@ -3,6 +3,17 @@ import { siteConfig } from "@/config";
 
 const { font: fontConfig } = siteConfig;
 
+/** src 既可以是单个字符串，也可以是字符串数组 */
+const toSrcList = (src: string | string[] | undefined): string[] =>
+	Array.isArray(src) ? src : src ? [src] : [];
+
+const isExternalUrl = (src: string): boolean =>
+	src.startsWith("http://") || src.startsWith("https://") || src.startsWith("//");
+
+/** 看起来像字体文件（而非 css）的本地路径 */
+const isLocalFontFile = (src: string): boolean =>
+	!isExternalUrl(src) && /\.(woff2?|ttf|otf|eot|svg)(\?|#|$)/i.test(src);
+
 // 获取选中的字体
 const getSelectedFonts = () => {
 	if (!fontConfig.enable || !fontConfig.selected) return [];
@@ -13,7 +24,7 @@ const getSelectedFonts = () => {
 
 	return selectedIds
 		.map((id) => fontConfig.fonts[id])
-		.filter((font) => font?.src); // 过滤掉系统字体和不存在的字体
+		.filter((font) => toSrcList(font?.src).length > 0); // 过滤掉系统字体和不存在的字体
 };
 
 const selectedFonts = getSelectedFonts();
@@ -53,54 +64,97 @@ const generateFontFamilyStyle = () => {
 };
 
 const fontFamilyStyle = generateFontFamilyStyle();
+
+// 外部字体的样式表链接（每个 family 的每个字重一份，并行加载）
+const externalStylesheets = selectedFonts.flatMap((font) =>
+	toSrcList(font.src)
+		.filter(isExternalUrl)
+		.map((href) => ({ href })),
+);
+
+// 本地字体文件走内联 @font-face
+const localFontFaces = selectedFonts.flatMap((font) =>
+	toSrcList(font.src)
+		.filter((src) => !isExternalUrl(src))
+		.map((src) => ({
+			family: font.family,
+			src,
+			format: (font as { format?: string }).format,
+			weight: (font as { weight?: string | number }).weight,
+			style: (font as { style?: string }).style,
+			display: (font as { display?: string }).display,
+			unicodeRange: (font as { unicodeRange?: string }).unicodeRange,
+		})),
+);
+
+// 预连接字体 CDN：省掉 DNS + TCP + TLS 的串行往返，
+// 这是"首屏先显示回退字体、稍后才变成文楷"的主要可优化项之一。
+const preconnectOrigins = [
+	...new Set(
+		externalStylesheets
+			.map(({ href }) => {
+				try {
+					return new URL(href.startsWith("//") ? `https:${href}` : href)
+						.origin;
+				} catch {
+					return null;
+				}
+			})
+			.filter((origin): origin is string => Boolean(origin)),
+	),
+];
+
+// 本地字体文件可预加载；外部 CDN 的具体分片由 css 的 unicode-range 决定，无法在此预加载
+const preloadFontFiles = localFontFaces.filter((face) =>
+	isLocalFontFile(face.src),
+);
 ---
 
-<!-- 字体样式表链接 -->{
-  selectedFonts.map((font) => {
-    // 判断是否为外部链接
-    const isExternalUrl =
-      font.src.startsWith("http://") ||
-      font.src.startsWith("https://") ||
-      font.src.startsWith("//");
-
-    if (isExternalUrl) {
-      // 外部字体链接 (如 Google Fonts, CDN等)
-      return <link rel="stylesheet" href={font.src} />;
-    } else {
-      // 本地字体文件
-      return (
-        <style
-          set:html={`
-        @font-face {
-          font-family: "${font.family}";
-          src: url("${font.src}") ${font.format ? `format("${font.format}")` : ""};
-          ${font.weight ? `font-weight: ${font.weight};` : ""}
-          ${font.style ? `font-style: ${font.style};` : ""}
-          ${font.display ? `font-display: ${font.display};` : ""}
-          ${font.unicodeRange ? `unicode-range: ${font.unicodeRange};` : ""}
-        }
-      `}
-        />
-      );
-    }
-  })
+<!-- 字体 CDN 预连接 -->
+{
+  preconnectOrigins.map((origin) => (
+    <link rel="preconnect" href={origin} crossorigin="anonymous" />
+  ))
 }
 
-<!-- 字体预加载链接 -->
+<!-- 字体样式表链接 -->
+{
+  externalStylesheets.map(({ href }) => (
+    <link rel="stylesheet" href={href} />
+  ))
+}
+
+<!-- 本地字体 @font-face -->
+{
+  localFontFaces.map((face) => (
+    <style
+      set:html={`
+        @font-face {
+          font-family: "${face.family}";
+          src: url("${face.src}") ${face.format ? `format("${face.format}")` : ""};
+          ${face.weight ? `font-weight: ${face.weight};` : ""}
+          ${face.style ? `font-style: ${face.style};` : ""}
+          ${face.display ? `font-display: ${face.display};` : ""}
+          ${face.unicodeRange ? `unicode-range: ${face.unicodeRange};` : ""}
+        }
+      `}
+    />
+  ))
+}
+
+<!-- 字体文件预加载（仅本地文件） -->
 {
   fontConfig.enable &&
     fontConfig.preload &&
-    selectedFonts
-      .filter((font) => !font.src.startsWith("http"))
-      .map((font) => (
-        <link
-          rel="preload"
-          href={font.src}
-          as="font"
-          type={`font/${font.format || "woff2"}`}
-          crossorigin
-        />
-      ))
+    preloadFontFiles.map((face) => (
+      <link
+        rel="preload"
+        href={face.src}
+        as="font"
+        type={`font/${face.format || "woff2"}`}
+        crossorigin
+      />
+    ))
 }
 
 <!-- 全局字体样式 -->
@@ -112,12 +166,12 @@ const fontFamilyStyle = generateFontFamilyStyle();
       --font-family-custom: ${selectedFonts.map((font) => `"${font.family}"`).join(", ")};
       --font-family-fallback: ${(fontConfig.fallback || []).join(", ")};
     }
-    
+
     /* 应用自定义字体到body */
     body {
       ${fontFamilyStyle}
     }
-    
+
     /* 为每个选中的字体生成对应的CSS类 */
     ${selectedFonts
       .map((font) => {
@@ -129,7 +183,7 @@ const fontFamilyStyle = generateFontFamilyStyle();
       `;
       })
       .join("\n")}
-    
+
     /* 为整体启用字体的body添加类名 */
     ${fontClasses.map((className) => `.${className}`).join(",\n")} {
       /* 字体相关的全局样式可以在这里添加 */
@@ -144,30 +198,11 @@ const fontFamilyStyle = generateFontFamilyStyle();
   if (document.fonts && typeof document.fonts.ready !== "undefined") {
     document.fonts.ready
       .then(() => {
-        console.log("All fonts have been loaded");
-
         // 触发自定义事件，通知字体加载完成
         document.dispatchEvent(new CustomEvent("fontsLoaded"));
       })
       .catch((error: Error) => {
         console.warn("Font loading failed:", error);
       });
-  }
-
-  // 字体加载性能监控
-  if (typeof PerformanceObserver !== "undefined") {
-    const observer = new PerformanceObserver((list) => {
-      list.getEntries().forEach((entry) => {
-        if (entry.entryType === "resource") {
-          // console.log(`Font resource loaded: ${entry.name} (${entry.duration.toFixed(2)}ms)`);
-        }
-      });
-    });
-
-    try {
-      observer.observe({ entryTypes: ["resource"] });
-    } catch (e) {
-      // 浏览器不支持时静默失败
-    }
   }
 </script>

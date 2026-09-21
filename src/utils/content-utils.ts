@@ -304,11 +304,8 @@ export async function getRelatedPosts(
 
 	// 排除自身和加密文章
 	const candidates = allPosts.filter(
-		(p) =>
-			p.id !== currentPost.id &&
-			!p.data.password &&
-			!p.data.password,
-		);
+		(p) => p.id !== currentPost.id && !p.data.password,
+	);
 
 	const currentTags = new Set(currentPost.data.tags || []);
 	const currentTokens = tokenizeTitle(currentPost.data.title);

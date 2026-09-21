@@ -376,7 +376,13 @@ export type AnnouncementConfig = {
 export type FontItem = {
 	id: string; // 字体唯一标识符
 	name: string; // 字体显示名称
-	src: string; // 字体文件路径或URL链接
+	/**
+	 * 字体文件路径或 URL 链接，也可以是数组（多个 css / 字体文件）。
+	 * 同一 family 的不同字重应拆成多个 css 分别引入，由 unicode-range 与
+	 * font-weight 决定实际使用哪一份；不要用内部 @import 汇总的 css，
+	 * 那会串行阻塞字体发现。
+	 */
+	src: string | string[];
 	family: string; // CSS font-family 名称
 	weight?: string | number; // 字体粗细，如 "normal", "bold", 400, 700 等
 	style?: "normal" | "italic" | "oblique"; // 字体样式

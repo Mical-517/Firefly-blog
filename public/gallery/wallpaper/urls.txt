@@ -2,5 +2,9 @@
 # 每行一个图片 URL，支持 jpg/png/webp/avif/gif 后缀
 # 重新同步：pnpm sync-oss
 
-https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper/20260917091306387.png
-https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper/20260917174359934.png
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921122001988.png
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921122951980.jpg
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921122954977.jpg
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921122957782.jpg
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921123001749.jpg
+https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/favorites/wallpaper20260921222126864.jpg

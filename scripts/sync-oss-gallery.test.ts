@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 import { describe, it } from "node:test";
 import {
+	albumIdFromFileName,
 	buildGeneratedAlbumsFile,
 	discoverAlbumIds,
+	discoverAlbumIdsFromKeys,
 	excludeManualConflicts,
 	filterImageObjects,
 	parseAlbumMeta,
@@ -147,6 +149,79 @@ describe("discoverAlbumIds", () => {
 
 	it("根自身与不含子目录时返回空数组", () => {
 		assert.deepEqual(discoverAlbumIds("root/", ["root/", "other/x/"]), []);
+	});
+});
+
+describe("albumIdFromFileName", () => {
+	it("取文件名开头的连续小写字母作为相册 id", () => {
+		assert.equal(albumIdFromFileName("anime20260921122149911.png"), "anime");
+		assert.equal(
+			albumIdFromFileName("wallpaper20260921122951980.jpg"),
+			"wallpaper",
+		);
+	});
+
+	it("遇到大写字母即停止，混合大小写文件名不会误组相册", () => {
+		// ZOSYzq3QsmJ3602.png 以大写开头，无小写前缀
+		assert.equal(albumIdFromFileName("ZOSYzq3QsmJ3602.png"), null);
+		// 前缀后紧跟大写也算该前缀（如 anime-ZOSYzq…）
+		assert.equal(albumIdFromFileName("anime-ZOSYzq3Q.png"), "anime");
+	});
+
+	it("子目录 key 取文件名部分，忽略目录路径", () => {
+		// 目录不参与归属判定；文件名本身无前缀（数字/大写开头）时归不入相册
+		assert.equal(
+			albumIdFromFileName("picture/favorites/anime/20221019010934_be561.jpeg"),
+			null,
+		);
+		assert.equal(
+			albumIdFromFileName("picture/favorites/anime/anime20260921122149911.png"),
+			"anime",
+		);
+	});
+
+	it("文件名以数字开头时返回 null（无前缀，归不入相册）", () => {
+		assert.equal(albumIdFromFileName("20260917174359934.png"), null);
+		assert.equal(
+			albumIdFromFileName("picture/favorites/20260917174359934.png"),
+			null,
+		);
+	});
+
+	it("无扩展名的对象也按同一规则解析", () => {
+		assert.equal(albumIdFromFileName("anime20260921122149911"), "anime");
+	});
+});
+
+describe("discoverAlbumIdsFromKeys", () => {
+	it("按文件名前缀发现相册，根下与子目录里的图片都算", () => {
+		assert.deepEqual(
+			discoverAlbumIdsFromKeys("picture/favorites/", [
+				"picture/favorites/anime20260921122149911.png",
+				"picture/favorites/wallpaper20260921122951980.jpg",
+				"picture/favorites/anime/anime20260921122153901.png",
+				"picture/favorites/20260917174359934.png",
+				"picture/favorites/ZOSYzq3QsmJ3602.png",
+				"picture/notes/foo.jpg",
+			]),
+			["anime", "wallpaper"],
+		);
+	});
+
+	it("容忍根前缀不带尾斜杠", () => {
+		assert.deepEqual(
+			discoverAlbumIdsFromKeys("picture/favorites", [
+				"picture/favorites/anime2026.png",
+			]),
+			["anime"],
+		);
+	});
+
+	it("全部图片都无前缀时返回空数组", () => {
+		assert.deepEqual(
+			discoverAlbumIdsFromKeys("root/", ["root/2024.jpg", "root/ZOSY.png"]),
+			[],
+		);
 	});
 });
 

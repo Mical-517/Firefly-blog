@@ -1,0 +1,14 @@
+
+> firefly@6.11.0 dev E:\SoftWare\fireflyblog\Firefly-blog
+> astro dev
+
+[astro] `markdown.remarkPlugins`, `markdown.rehypePlugins`, and `markdown.remarkRehype` are deprecated. Pass them to `unified({...})` from `@astrojs/markdown-remark` directly instead.
+[vite] connected.
+[2m12:25:34[22m [34m[types][39m Generated [2m3ms[22m
+[vite] connected.
+[2m12:25:35[22m [34m[content][39m Syncing content
+[2m12:25:35[22m [34m[content][39m Synced content
+[42m[1m astro [22m[49m [32mv6.4.4[39m [2mready in[22m 45858 [2mms[22m
+[2m┃[22m Local    [36mhttp://localhost:4321/[39m
+[2m┃[22m Network  [2muse --host to expose[22m
+[2m12:25:35[22m [32mwatching for file changes...[39m

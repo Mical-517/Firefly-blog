@@ -17,7 +17,8 @@
     "icons": "node scripts/generate-icons.js",
     "lqips": "npx tsx scripts/generate-lqips.ts",
     "sync-oss": "node --experimental-strip-types scripts/sync-oss-gallery.ts",
-    "test:oss": "node --test --experimental-strip-types scripts/sync-oss-gallery.test.ts"
+    "test:oss": "node --test --experimental-strip-types scripts/sync-oss-gallery.test.ts",
+    "test": "node --test --import tsx \"src/settings/*.test.ts\" \"scripts/*.test.ts\""
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",
@@ -90,7 +91,8 @@
     "@types/sanitize-html": "^2.16.1",
     "postcss-import": "^16.1.1",
     "postcss-nesting": "^13.0.2",
-    "tailwindcss": "^4.3.0"
+    "tailwindcss": "^4.3.0",
+    "tsx": "^4.23.13"
   },
   "packageManager": "pnpm@9.14.4"
 }

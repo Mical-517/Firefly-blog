@@ -33,7 +33,7 @@ const iconSetCache = new Map();
 /**
  * 递归获取目录下所有文件
  */
-function getAllFiles(dir, extensions = [".svelte"]) {
+function getAllFiles(dir, extensions = [".svelte", ".astro"]) {
 	const files = [];
 
 	function walk(currentDir) {
@@ -69,17 +69,41 @@ function extractIconNames(content) {
 		/icon=["']([a-z0-9-]+:[a-z0-9-]+)["']/gi,
 		// icon={`xxx:yyy`}
 		/icon=\{[`"']([a-z0-9-]+:[a-z0-9-]+)[`"']\}/gi,
+		// name="xxx:yyy"（astro-icon 的 Icon 组件用法）
+		/name=["']([a-z0-9-]+:[a-z0-9-]+)["']/gi,
 		// getIconSvg("xxx:yyy") 或 getIconSvg('xxx:yyy')
 		/getIconSvg\(["']([a-z0-9-]+:[a-z0-9-]+)["']\)/gi,
 		// hasIcon("xxx:yyy")
 		/hasIcon\(["']([a-z0-9-]+:[a-z0-9-]+)["']\)/gi,
 	];
 
+	// 已知非图标的 name= 值（HTML meta 标签等），在匹配结果中剔除
+	const notIcons = new Set([
+		"twitter:card",
+		"twitter:url",
+		"twitter:title",
+		"twitter:description",
+	]);
+
 	for (const pattern of patterns) {
 		let match;
 		while ((match = pattern.exec(content)) !== null) {
-			icons.add(match[1]);
+			const name = match[1];
+			if (name && !notIcons.has(name)) {
+				icons.add(name);
+			}
 		}
+	}
+
+	// 动态引用兜底：Profile.astro 里 icon={item.icon} 这类运行时取值
+	// 静态扫描拿不到，必须显式列出（与 src/config/profileConfig.ts 的 links 保持同步）
+	for (const icon of [
+		"fa7-brands:qq",
+		"fa7-brands:github",
+		"fa7-solid:envelope",
+		"fa7-solid:rss",
+	]) {
+		icons.add(icon);
 	}
 
 	return icons;

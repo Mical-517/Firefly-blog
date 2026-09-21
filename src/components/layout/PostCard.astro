@@ -79,7 +79,7 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
   <div
     class:list={[
       "post-card-content",
-      "pl-4 md:pl-9 pr-4 md:pr-2 pt-4 md:pt-7 pb-4 md:pb-7 relative flex flex-col h-full",
+      "pl-4 md:pl-9 pr-4 md:pr-2 pt-4 md:pt-7 pb-4 md:pb-7 relative flex flex-col md:self-stretch",
       {
         "w-full md:w-[calc(100%-52px-12px)]": !hasCover,
         "w-full md:w-[calc(100%-var(--coverWidth)-1.5rem)]": hasCover,
@@ -106,21 +106,10 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
       }
     </a>
 
-    <!-- metadata -->
-    <PostMetadata
-      published={published}
-      tags={tags}
-      showTags={false}
-      category={category || undefined}
-      pinned={pinned}
-      password={password}
-      className="mb-4 post-meta"
-    />
-
     <!-- description -->
     <div
       class:list={[
-        "transition text-75 md:pr-4 description grow",
+        "transition text-75 md:pr-4 description",
         { "description-clamped": shouldClampDescription },
       ]}
       title={descriptionText}
@@ -128,10 +117,21 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
       {descriptionText}
     </div>
 
+    <!-- metadata（置于卡片底部，突出标题与概述） -->
+    <PostMetadata
+      published={published}
+      tags={tags}
+      showTags={false}
+      category={category || undefined}
+      pinned={pinned}
+      password={password}
+      className="post-meta"
+    />
+
     <!-- tags -->
     {
       showTags && (
-        <div class="text-sm text-black/30 dark:text-white/30 flex flex-wrap gap-2 transition stats pt-3">
+        <div class="text-sm text-black/30 dark:text-white/30 flex flex-wrap gap-2 transition stats pt-0">
           {tags &&
             tags.length > 0 &&
             tags.map((tag, _i) => (
@@ -218,13 +218,34 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
   }
 
   /* === List Mode Mobile Styles === */
-  /* 移动端列表模式：封面在右侧，内容缩小 */
+  /* 移动端列表模式：封面在左侧（对标 Fluid），内容缩小 */
   :global(.list-mode) .post-card-wrapper {
     flex-direction: row !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border: none !important;
+    min-height: 11rem !important;
+  }
+
+  /* 元信息推到卡片底部：与描述拉开距离，突出标题与概述。
+     PostMeta 是子组件，根元素不带本组件的 data-astro-cid，
+     必须 :global 全包才能命中。 */
+  :global(.list-mode .post-meta) {
+    margin-top: auto !important;
+    padding-top: 1.25rem !important;
+  }
+
+  /* 标签从胶囊按钮改为 Fluid 式纯文本 #标签 */
+  :global(.list-mode) .stats a {
+    background: none !important;
+    border: none !important;
+    padding: 0 !important;
+    height: auto !important;
   }
 
   :global(.list-mode) .has-cover .post-card-content {
-    width: calc(100% - 9rem - 0.75rem) !important;
+    width: calc(100% - 10rem) !important;
+    margin-left: 9.5rem !important;
     padding: 0.75rem 0.5rem 0.75rem 0.75rem !important;
   }
 
@@ -232,7 +253,8 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
     position: absolute !important;
     top: 0.5rem !important;
     bottom: 0.5rem !important;
-    right: 0.5rem !important;
+    left: 0.5rem !important;
+    right: auto !important;
     width: 9rem !important;
     aspect-ratio: auto !important;
     border-radius: 0.75rem !important;
@@ -271,19 +293,32 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
   @media (min-width: 768px) {
     :global(.list-mode) .post-card-wrapper {
       flex-direction: row !important;
+      background: transparent !important;
+      box-shadow: none !important;
+      border: none !important;
+      /* 给内容留出纵向呼吸空间，让元信息贴底、描述与元信息自然拉开 */
+      min-height: 14rem !important;
+    }
+
+    /* 封面在 row 布局中不参与定高，改为跟随卡片拉伸 */
+    :global(.list-mode) .has-cover .post-card-image {
+      height: auto !important;
     }
 
     :global(.list-mode) .has-cover .post-card-content {
       width: calc(100% - var(--coverWidth) - 1.5rem) !important;
-      padding: 1.75rem 0.5rem 1.75rem 2.25rem !important;
+      margin-left: calc(var(--coverWidth) + 1rem) !important;
+      padding: 1.5rem 0.5rem 1rem 1.75rem !important;
     }
 
     :global(.list-mode) .has-cover .post-card-image {
-      top: 1rem !important;
-      bottom: 1rem !important;
-      right: 1rem !important;
+      top: 0.75rem !important;
+      bottom: 0.75rem !important;
+      left: 0 !important;
+      right: auto !important;
       width: var(--coverWidth) !important;
       border-radius: 0.75rem !important;
+      height: auto !important;
     }
 
     :global(.list-mode) .post-card-title {
@@ -293,9 +328,7 @@ const descriptionText = description || remarkPluginFrontmatter.excerpt || "";
     }
 
     :global(.list-mode) .post-card-title::before {
-      display: block !important;
-      top: 2.25rem !important;
-      height: 1rem !important;
+      display: none !important;
     }
 
     :global(.list-mode) .description {

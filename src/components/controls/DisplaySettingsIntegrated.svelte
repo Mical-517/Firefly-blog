@@ -19,6 +19,7 @@ import {
 	getDefaultWavesEnabled,
 	getHue,
 	getStoredBannerCarouselEnabled,
+	getStoredImmersiveHome,
 	getStoredBannerTitleEnabled,
 	getStoredGradientEnabled,
 	getStoredOverlayBlur,
@@ -30,6 +31,7 @@ import {
 	setBannerCarouselEnabled,
 	setBannerTitleEnabled,
 	setGradientEnabled,
+	setImmersiveHome,
 	setHue,
 	setOverlayBlur,
 	setOverlayCardOpacity,
@@ -39,6 +41,7 @@ import {
 	setWavesEnabled,
 } from "@utils/setting-utils";
 import { onMount } from "svelte";
+import { clearSetting, readSetting, writeSetting } from "@/settings/store";
 import Icon from "@/components/common/Icon.svelte";
 import { backgroundWallpaper, sakuraConfig, siteConfig } from "@/config";
 import type { WALLPAPER_MODE } from "@/types/config";
@@ -82,6 +85,7 @@ let bannerCarouselEnabled = $state(true);
 const defaultBannerCarouselEnabled = getDefaultBannerCarouselEnabled();
 let sakuraEnabled = $state(true);
 const defaultSakuraEnabled = getDefaultSakuraEnabled();
+let immersiveHomeEnabled = $state(true);
 let overlayOpacity = $state(getDefaultOverlayOpacity());
 const defaultOverlayOpacity = getDefaultOverlayOpacity();
 let overlayBlur = $state(getDefaultOverlayBlur());
@@ -220,7 +224,7 @@ function resetWallpaperMode() {
 
 function resetLayout() {
 	currentLayout = effectiveDefaultLayout;
-	localStorage.removeItem("postListLayout");
+	clearSetting("postListLayout");
 
 	// 触发自定义事件，通知页面布局已改变
 	const event = new CustomEvent("layoutChange", {
@@ -304,6 +308,11 @@ function toggleBannerCarouselEnabled() {
 	setBannerCarouselEnabled(bannerCarouselEnabled);
 }
 
+function toggleImmersiveHome() {
+	immersiveHomeEnabled = !immersiveHomeEnabled;
+	setImmersiveHome(immersiveHomeEnabled);
+}
+
 function toggleSakuraEnabled() {
 	sakuraEnabled = !sakuraEnabled;
 	setSakuraEnabled(sakuraEnabled);
@@ -361,7 +370,7 @@ function switchLayout() {
 
 	isSwitching = true;
 	currentLayout = currentLayout === "list" ? "grid" : "list";
-	localStorage.setItem("postListLayout", currentLayout);
+	writeSetting("postListLayout", currentLayout);
 
 	// 触发自定义事件，通知页面布局已改变
 	const event = new CustomEvent("layoutChange", {
@@ -397,13 +406,16 @@ onMount(() => {
 	// 从localStorage读取樱花特效状态
 	sakuraEnabled = getStoredSakuraEnabled();
 
+	// 从localStorage读取沉浸首页状态
+	immersiveHomeEnabled = getStoredImmersiveHome();
+
 	// 从localStorage读取全屏透明设置状态
 	overlayOpacity = getStoredOverlayOpacity();
 	overlayBlur = getStoredOverlayBlur();
 	overlayCardOpacity = getStoredOverlayCardOpacity();
 
-	// 从localStorage读取用户偏好布局
-	const savedLayout = localStorage.getItem("postListLayout");
+	// 用户偏好布局经设置存储 seam 读取（注册表 id: postListLayout）
+	const savedLayout = readSetting<"list" | "grid">("postListLayout");
 	if (savedLayout && (savedLayout === "list" || savedLayout === "grid")) {
 		currentLayout = savedLayout;
 	} else {
@@ -793,6 +805,31 @@ $effect(() => {
             </div>
         </div>
     {/if}
+
+    <!-- Immersive Home Switch -->
+    <div class="mt-2 mb-2">
+        <div class="flex gap-2 font-bold text-lg text-neutral-900 dark:text-neutral-100 transition relative ml-3 mb-2
+            before:w-1 before:h-4 before:rounded-md before:bg-(--primary)
+            before:absolute before:-left-3 before:top-1/2 before:-translate-y-1/2"
+        >
+            {i18n(I18nKey.immersiveHome)}
+        </div>
+        <button
+            class="w-full btn-regular rounded-md py-2 px-3 flex items-center gap-3 text-left active:scale-95 transition-all relative overflow-hidden"
+            class:bg-(--btn-regular-bg-hover)={immersiveHomeEnabled}
+            onclick={toggleImmersiveHome}
+        >
+            <Icon icon="material-symbols:fullscreen-rounded" class="text-[1.25rem] shrink-0"></Icon>
+            <span class="text-sm flex-1">{i18n(I18nKey.immersiveHome)}</span>
+            <div class="w-10 h-5 rounded-full transition-all duration-200 relative"
+                 class:bg-(--primary)={immersiveHomeEnabled}
+                 class:bg-(--btn-regular-bg-active)={!immersiveHomeEnabled}>
+                <div class="absolute top-0.5 w-4 h-4 bg-white rounded-full shadow transition-all duration-200"
+                     class:left-0.5={!immersiveHomeEnabled}
+                     class:left-5={immersiveHomeEnabled}></div>
+            </div>
+        </button>
+    </div>
 </div>
 {/if}
 

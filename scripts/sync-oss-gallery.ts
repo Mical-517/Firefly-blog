@@ -1,7 +1,8 @@
 // 同步阿里云 OSS 相册到站点。
 //
 // 两种模式：
-//   1) 发现模式（推荐）：扫描相册根下的每个子目录，各自成为一个相册
+//   1) 发现模式（推荐）：扫描相册根下的图片，文件名前缀 = 相册
+//      （anime2026….png → anime 相册；历史子目录 anime/xxx.png 同样按前缀归属）
 //      pnpm sync-oss --discover
 //   2) 手动模式：指定相册 id 或同步全部，按 <前缀>/<id>/ 取图
 //      pnpm sync-oss --album <id> [--prefix <前缀>]
@@ -26,14 +27,13 @@ import OSS from "ali-oss";
 import { manualAlbums } from "../src/config/galleryConfig.ts";
 import {
 	buildGeneratedAlbumsFile,
-	discoverAlbumIds,
 	excludeManualConflicts,
 	filterImageObjects,
 	IMAGE_EXTENSIONS,
 	META_FILE_NAME,
 	type OssObject,
 	parseAlbumMeta,
-	resolveMetaCover,
+	albumIdFromFileName,
 	toObjectUrl,
 	toUrlsFileContent,
 } from "./sync-oss-core.ts";
@@ -106,12 +106,12 @@ function printHelp(): void {
 同步阿里云 OSS 相册到站点
 
 用法:
-  pnpm sync-oss --discover [选项]              扫描相册根，每个子目录成为一个相册
+  pnpm sync-oss --discover [选项]              扫描相册根，文件名前缀 = 相册
   pnpm sync-oss --album <相册id> [选项]        同步指定相册
   pnpm sync-oss --all [选项]                   同步手写相册
 
 选项:
-  --discover        发现模式：扫描 OSS_GALLERY_ROOT 下的子目录，各自成为一个相册
+  --discover        发现模式：扫描 OSS_GALLERY_ROOT 下所有图片，文件名前缀 = 相册
   --album <id>      相册 id（对应 public/gallery/<id>/ 目录）
   --all             同步手写相册（manualAlbums）里所有相册
   --prefix <key>    手动模式的 OSS 前缀（默认 '<OSS_ALBUM_PREFIX>/<id>'）
@@ -122,8 +122,13 @@ function printHelp(): void {
   OSS_REGION, OSS_BUCKET, OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_DOMAIN,
   OSS_GALLERY_ROOT（发现模式，默认 picture/favorites）, OSS_ALBUM_PREFIX（手动模式，默认 albums）
 
+相册约定:
+  相册 = 相册根下图片文件名的公共前缀（anime2026….png → anime 相册）。
+  建议图片直接放在相册根下；历史子目录（anime/xxx.png）也兼容，按文件名前缀归属。
+
 相册元数据:
-  在每个相册目录内放 ${META_FILE_NAME} 可自定义名称/描述/日期/标签等；缺失时用目录名。
+  在相册根放 <相册id>.meta.json 可自定义名称/描述/日期/标签等；缺失时用相册 id。
+  兼容旧位置：<相册id>/${META_FILE_NAME}。
 `);
 }
 
@@ -250,61 +255,77 @@ function removeAlbumDirIfGeneratedOnly(albumId: string): boolean {
 }
 
 // ---------- 发现模式 ----------
+// 相册约定：相册 = 相册根下图片文件名的公共前缀（如 anime2026….png → anime）。
+// 相册根下的子目录不做特殊处理；子目录里的图片会被列出，但其文件名前缀决定归属
+// （历史遗留的 anime/xxx.png 也会归入 anime 相册，实现平滑迁移）。
+// 相册元数据放在相册根：<相册id>.meta.json（此前是 <相册id>/meta.json，仍兼容读取）。
 async function runDiscover(ctx: OssContext, rootPrefix: string): Promise<void> {
 	const root = rootPrefix.endsWith("/") ? rootPrefix : `${rootPrefix}/`;
 	console.log(`发现模式：扫描相册根 oss://${ctx.bucket}/${root}`);
 
-	const rootLevel = await listObjects(ctx.client, root, false);
-	const albumIds = discoverAlbumIds(root, rootLevel.folders);
+	// 递归列出相册根下全部对象（子目录视为普通前缀，不再单独成相册）
+	const { objects: allObjects } = await listObjects(ctx.client, root, true);
+	const images = filterImageObjects(allObjects);
 
-	// 根目录下直接放的图片：不属于任何相册，提示用户
-	const strayImages = filterImageObjects(rootLevel.objects);
-	if (strayImages.length > 0) {
-		console.warn(
-			`  提示：相册根下有 ${strayImages.length} 张图片未归入任何相册（相册 = 根下的子目录）。`,
-		);
-		for (const img of strayImages.slice(0, 5)) {
-			console.warn(`    - ${img.key}`);
+	// 文件名前缀 → 相册 id；无法提取前缀（数字开头等）的图片归不入任何相册
+	const byAlbum = new Map<string, OssObject[]>();
+	let ungrouped = 0;
+	for (const obj of images) {
+		const albumId = albumIdFromFileName(obj.key);
+		if (!albumId) {
+			ungrouped++;
+			continue;
 		}
-		if (strayImages.length > 5) {
-			console.warn(`    ... 其余 ${strayImages.length - 5} 张省略`);
-		}
+		const bucket = byAlbum.get(albumId);
+		if (bucket) bucket.push(obj);
+		else byAlbum.set(albumId, [obj]);
 	}
 
-	if (albumIds.length === 0) {
-		console.warn("  相册根下没有子目录，未发现任何相册。");
+	if (ungrouped > 0) {
+		console.warn(
+			`  提示：相册根下有 ${ungrouped} 张图片文件名无字母前缀，未归入任何相册（相册 = 文件名前缀，如 anime2026….png → anime）。`,
+		);
+	}
+
+	if (byAlbum.size === 0) {
+		console.warn("  相册根下没有可识别的图片，未发现任何相册。");
 	}
 
 	const discovered: Array<{ id: string } & ReturnType<typeof parseAlbumMeta>> =
 		[];
 
-	for (const albumId of albumIds) {
-		const albumPrefix = `${root}${albumId}/`;
-		console.log(`  相册 [${albumId}] <- oss://${ctx.bucket}/${albumPrefix}`);
+	for (const [albumId, albumObjects] of byAlbum) {
+		console.log(
+			`  相册 [${albumId}] <- ${albumObjects.length} 张图片（文件名前缀匹配）`,
+		);
 
 		try {
-			// 只收相册目录自身这一层的图片，不含更深子目录
-			const level = await listObjects(ctx.client, albumPrefix, false);
-			const count = writeAlbumFromObjects(ctx, albumId, level.objects);
-
-			if (count === 0) {
-				const removed = removeAlbumDirIfGeneratedOnly(albumId);
-				console.warn(
-					`    目录下没有图片（支持: ${[...IMAGE_EXTENSIONS].join(", ")}），跳过（不作为相册）。${removed ? "已清理本地残留目录。" : ""}`,
-				);
-				continue;
-			}
+			const count = writeAlbumFromObjects(ctx, albumId, albumObjects);
 			console.log(`    已写入 ${count} 个图片 URL`);
 
-			const metaRaw = await readTextObject(
+			// 元数据：<相册id>.meta.json（新约定）；兼容旧位置 <相册id>/meta.json
+			let metaRaw = await readTextObject(
 				ctx.client,
-				`${albumPrefix}${META_FILE_NAME}`,
+				`${root}${albumId}.meta.json`,
 			);
+			if (metaRaw === null) {
+				metaRaw = await readTextObject(
+					ctx.client,
+					`${root}${albumId}/${META_FILE_NAME}`,
+				);
+			}
 			const meta = parseAlbumMeta(metaRaw, albumId);
-			const cover = resolveMetaCover(meta.cover, albumPrefix, (key) =>
-				toObjectUrl(ctx.domain, ctx.region, ctx.bucket, key),
-			);
-			if (cover) meta.cover = cover;
+			if (meta.cover) {
+				// cover 已是完整 URL 原样保留；是文件名时视为相册根下的文件
+				meta.cover = /^https?:\/\//i.test(meta.cover)
+					? meta.cover
+					: toObjectUrl(
+							ctx.domain,
+							ctx.region,
+							ctx.bucket,
+							`${root}${meta.cover.replace(/^\.?\//, "")}`,
+						);
+			}
 
 			discovered.push({ id: albumId, ...meta });
 		} catch (error) {

@@ -249,6 +249,9 @@ export const en: Translation = {
 	[Key.postListLayoutList]: "List",
 	[Key.postListLayoutGrid]: "Grid",
 
+	[Key.widgets]: "Widgets",
+	[Key.immersiveHome]: "Immersive Home",
+
 	// Sponsor Page
 	[Key.sponsor]: "Sponsor",
 	[Key.sponsorTitle]: "Support Me",

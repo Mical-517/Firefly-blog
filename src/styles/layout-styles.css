@@ -20,17 +20,20 @@ html.is-page-transitioning .banner-home-text-overlay {
 
 /* Banner text styles */
 .banner-title {
-    text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.7);
+    text-shadow: 1px 1px 3px rgba(0, 0, 0, 0.7);
     animation: banner-fadeInUp 0.3s ease-out;
-    font-weight: bold;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    opacity: 0.85;
     /* 防止大字体标题溢出容器 */
     overflow-wrap: break-word;
     word-break: break-word;
 }
 
 .banner-subtitle {
-    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.6);
+    text-shadow: 2px 2px 6px rgba(0, 0, 0, 0.75);
     animation: banner-fadeInUp 0.3s ease-out 0.3s both;
+    font-weight: 600;
 }
 
 @keyframes banner-fadeInUp {
@@ -717,14 +720,20 @@ html[data-wallpaper-mode="fullscreen"] body:not(.sticky-navbar) #top-row {
 #wallpaper-wrapper.wallpaper-fullscreen .scroll-down-indicator {
     display: flex;
     position: absolute;
-    bottom: 5rem;
+    bottom: 3rem;
     left: 50%;
     transform: translateX(-50%);
     z-index: 10;
     cursor: pointer;
     pointer-events: auto;
-    color: rgba(255, 255, 255, 0.8);
+    color: rgba(255, 255, 255, 0.9);
     transition: opacity 0.4s ease, transform 0.4s ease;
+    animation: scroll-indicator-fadeIn 1.2s ease-out 0.6s both;
+}
+
+@keyframes scroll-indicator-fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @media (max-width: 1023px) {
@@ -734,9 +743,9 @@ html[data-wallpaper-mode="fullscreen"] body:not(.sticky-navbar) #top-row {
 }
 
 #wallpaper-wrapper.wallpaper-fullscreen .scroll-down-indicator .scroll-down-icon {
-    font-size: 5rem;
-    animation: scroll-down-bounce 2s ease-in-out infinite;
-    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.3));
+    font-size: 3.5rem;
+    animation: scroll-down-bounce 2.4s ease-in-out infinite;
+    filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.55));
 }
 
 #wallpaper-wrapper.wallpaper-fullscreen .scroll-down-indicator:hover {
@@ -756,12 +765,12 @@ html:not([data-wallpaper-mode="overlay"]):not([data-wallpaper-mode="none"]):not(
 }
 
 /* Fullscreen 模式下主内容在壁纸下方，用 relative 定位紧跟壁纸 */
-html[data-wallpaper-mode="fullscreen"] .w-full.z-30.pointer-events-none {
+html[data-wallpaper-mode="fullscreen"] #main-content {
     top: 0 !important;
 }
 
 /* 初始加载时隐藏主内容，防止壁纸初始化前内容闪烁 */
-html[data-wallpaper-mode="fullscreen"] body:not(.wallpaper-initialized) .w-full.z-30.pointer-events-none {
+html[data-wallpaper-mode="fullscreen"] body:not(.wallpaper-initialized) #main-content {
     visibility: hidden;
 }
 
@@ -771,10 +780,66 @@ html[data-wallpaper-mode="fullscreen"] body:not(.wallpaper-initialized) .w-full.
         display: none !important;
     }
 
-    /* Fullscreen 模式下主内容使用 relative 定位，需要匹配 pointer-events-none 类 */
-    .w-full.z-30.pointer-events-none.mobile-main-no-banner {
+    /* Fullscreen 模式下移动端非首页：主内容下移避让导航 */
+    #main-content.mobile-main-no-banner {
         top: 5.5rem !important;
         min-height: calc(100vh - 5.5rem) !important;
         transition: top 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94) 0.2s !important;
+    }
+}
+
+/* ==== 沉浸首页（ADR-0003，CONTEXT.md: Immersive Home） ====
+   通过覆盖三个布局变量让全部既有定位机制自动跟随：
+   pre-paint 生成脚本、swup 钩子、setting-utils 定位都引用这些变量。 */
+html:not([data-immersive-home="false"]) body.is-home {
+    --banner-height-home: 100vh;
+    --banner-height: 100vh;
+    --banner-height-extend: 0px;
+}
+
+/* 沉浸首页：导航条固定为单条高度（不再随横幅拉伸） */
+html:not([data-immersive-home="false"]) body.is-home.enable-banner #top-row {
+    height: 4.5rem !important;
+}
+
+/* 打字机光标（对齐 Fluid 观感） */
+.banner-home-text-overlay .typewriter::after {
+    content: "_";
+    margin-left: 0.15em;
+    animation: firefly-cursor-blink 1.1s steps(1) infinite;
+}
+
+@keyframes firefly-cursor-blink {
+    0%, 49% { opacity: 1; }
+    50%, 100% { opacity: 0; }
+}
+
+/* 沉浸首页：格言（banner-title）保持小字；打字机（banner-subtitle）为桌面主视觉 */
+@media (min-width: 1024px) {
+    html:not([data-immersive-home="false"]) body.is-home .banner-home-text-overlay .banner-subtitle {
+        font-size: clamp(1.75rem, 3.2vw, 2.75rem) !important;
+    }
+}
+
+/* 沉浸首页：标题区可读性渐变 */
+html:not([data-immersive-home="false"]) body.is-home .banner-home-text-overlay::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background: linear-gradient(to bottom, rgba(0, 0, 0, 0.35), rgba(0, 0, 0, 0.15) 40%, rgba(0, 0, 0, 0.4));
+}
+
+/* ==== 右侧栏收编导航栏「组件」面板（ADR-0003 迭代） ====
+   非文章页（#main-grid.no-right-sidebar）隐藏右侧栏并将网格收窄为两列，
+   文章页保留右侧栏（目录）。 */
+#main-grid.no-right-sidebar #right-sidebar {
+    display: none !important;
+}
+
+@media (min-width: 1280px) {
+    #main-grid.no-right-sidebar {
+        grid-template-columns: 17.5rem 1fr !important;
     }
 }

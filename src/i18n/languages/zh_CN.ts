@@ -241,6 +241,9 @@ export const zh_CN: Translation = {
 	[Key.postListLayoutList]: "列表",
 	[Key.postListLayoutGrid]: "网格",
 
+	[Key.widgets]: "组件",
+	[Key.immersiveHome]: "沉浸首页",
+
 	// 赞助页面
 	[Key.sponsor]: "赞助",
 	[Key.sponsorTitle]: "赞助支持",

@@ -94,6 +94,36 @@ export function discoverAlbumIds(
 }
 
 /**
+ * 从相册根下一张图片的文件名里提取相册 id。
+ * 约定：相册 id 是文件名开头的连续小写字母（遇到数字/大写/下划线/连字符即停止），
+ * 例如 "anime20260921122149911.png" → "anime"、"anime-ZOSYzq….png" → "anime"。
+ * 没有小写字母前缀（数字或大写开头）时返回 null，归不进任何相册。
+ */
+export function albumIdFromFileName(key: string): string | null {
+	const fileName = key.slice(key.lastIndexOf("/") + 1);
+	const dot = fileName.lastIndexOf(".");
+	const stem = dot > 0 ? fileName.slice(0, dot) : fileName;
+	const match = /^[a-z]+/.exec(stem);
+	return match ? match[0] : null;
+}
+
+/**
+ * 从相册根下的对象清单中提取自动发现相册的 id。
+ * 相册 = 根下图片文件名的公共前缀（见 albumIdFromFileName），子目录层级不再参与。
+ */
+export function discoverAlbumIdsFromKeys(
+	rootPrefix: string,
+	keys: string[],
+): string[] {
+	const root = rootPrefix.endsWith("/") ? rootPrefix : `${rootPrefix}/`;
+	const ids = keys
+		.filter((key) => key.startsWith(root) && !key.slice(root.length).includes("/"))
+		.map((key) => albumIdFromFileName(key))
+		.filter((id): id is string => id !== null);
+	return [...new Set(ids)].sort();
+}
+
+/**
  * 解析相册元数据文件内容。缺失、非法 JSON 或字段类型不符时回退。
  * id 由目录名决定，元数据里的 id 字段一律忽略。
  */

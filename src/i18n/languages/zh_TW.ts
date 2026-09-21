@@ -243,6 +243,9 @@ export const zh_TW: Translation = {
 	[Key.postListLayoutList]: "清單",
 	[Key.postListLayoutGrid]: "網格",
 
+	[Key.widgets]: "小工具",
+	[Key.immersiveHome]: "沉浸首頁",
+
 	// 贊助頁面
 	[Key.sponsor]: "贊助",
 	[Key.sponsorTitle]: "贊助支持",

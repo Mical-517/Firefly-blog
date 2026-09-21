@@ -6,6 +6,8 @@ import { Icon } from "astro-icon/components";
 import DisplaySettings from "@/components/controls/DisplaySettingsIntegrated.svelte";
 import LightDarkSwitch from "@/components/controls/LightDarkSwitch.svelte";
 import Search from "@/components/controls/Search.svelte";
+import Calendar from "@/components/widget/Calendar.astro";
+import SiteStats from "@/components/widget/SiteStats.astro";
 import MusicPlayer from "@/components/features/MusicPlayer.astro";
 import { backgroundWallpaper, navBarConfig, siteConfig } from "@/config";
 import { musicPlayerConfig } from "@/config/musicConfig";
@@ -21,23 +23,22 @@ import NavMenuPanel from "./NavMenuPanel.astro";
 
 const className = Astro.props.class;
 
-// 获取导航栏透明模式配置
-const navbarTransparentMode =
-	backgroundWallpaper.mode === "banner"
-		? backgroundWallpaper.common?.navbar?.transparentMode || "semi"
-		: "semi";
+// 获取导航栏透明模式配置：壁纸存在时（banner/fullscreen/overlay）使用配置的
+// 透明模式（semifull = 顶部透明、滚动后毛玻璃）；纯色背景（none）用卡片样式
+const hasWallpaperSurface = backgroundWallpaper.mode !== "none";
+const navbarTransparentMode = hasWallpaperSurface
+	? backgroundWallpaper.common?.navbar?.transparentMode || "semi"
+	: "semi";
 
 // 获取导航栏毛玻璃效果配置
-const navbarEnableBlur =
-	backgroundWallpaper.mode === "banner"
-		? (backgroundWallpaper.common?.navbar?.enableBlur ?? true)
-		: false;
+const navbarEnableBlur = hasWallpaperSurface
+	? (backgroundWallpaper.common?.navbar?.enableBlur ?? true)
+	: false;
 
 // 获取导航栏模糊度
-const navbarBlur =
-	backgroundWallpaper.mode === "banner"
-		? (backgroundWallpaper.common?.navbar?.blur ?? 20)
-		: 0;
+const navbarBlur = hasWallpaperSurface
+	? (backgroundWallpaper.common?.navbar?.blur ?? 20)
+	: 0;
 
 // 获取导航栏标题，如果没有设置则使用 siteConfig.title
 const navbarTitle = siteConfig.navbar.title || siteConfig.title;
@@ -138,6 +139,9 @@ if (isLocalSrcLogo) {
                 <Search
                     client:load
                 />
+                <button aria-label={i18n(I18nKey.widgets)} class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="widgets-switch">
+                    <Icon name="material-symbols:widgets-outline" is:inline class="text-[1.25rem]"></Icon>
+                </button>
                 {musicPlayerConfig.showInNavbar && (
                     <button aria-label={i18n(I18nKey.music)} class="btn-plain scale-animation rounded-lg h-11 w-11 active:scale-90" id="music-player-switch">
                         <Icon name="material-symbols:music-note-rounded" is:inline class="text-[1.25rem]"></Icon>
@@ -160,6 +164,11 @@ if (isLocalSrcLogo) {
                 <MusicPlayer />
             </div>
         )}
+        <!-- 组件面板：站点统计 + 日历（自侧边栏迁入，见 ADR-0003 迭代） -->
+        <div id="widgets-panel" class="float-panel float-panel-closed absolute transition-all right-16 mt-1 w-[22rem] max-w-[calc(100vw-2rem)] max-h-[70vh] overflow-y-auto space-y-2 z-50">
+            <SiteStats />
+            <Calendar />
+        </div>
         <NavMenuPanel links={links}></NavMenuPanel>
         <DisplaySettings client:load></DisplaySettings>
     </div>
@@ -207,9 +216,19 @@ function loadButtonScript() {
         };
     }
 
+    let widgetsBtn = document.getElementById("widgets-switch");
+    if (widgetsBtn) {
+        widgetsBtn.onclick = function () {
+            let widgetsPanel = document.getElementById("widgets-panel");
+            if (widgetsPanel) {
+                widgetsPanel.classList.toggle("float-panel-closed");
+            }
+        };
+    }
+
     document.addEventListener("click", function(event) {
-        const panels = ["display-setting", "nav-menu-panel", "music-nav-panel", "theme-mode-panel"];
-        const buttons = ["display-settings-switch", "nav-menu-switch", "music-player-switch", "scheme-switch"];
+        const panels = ["display-setting", "nav-menu-panel", "music-nav-panel", "theme-mode-panel", "widgets-panel"];
+        const buttons = ["display-settings-switch", "nav-menu-switch", "music-player-switch", "scheme-switch", "widgets-switch"];
 
         panels.forEach((id, index) => {
             const panel = document.getElementById(id);

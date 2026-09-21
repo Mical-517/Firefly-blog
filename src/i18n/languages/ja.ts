@@ -248,6 +248,9 @@ export const ja: Translation = {
 	[Key.postListLayoutList]: "リスト",
 	[Key.postListLayoutGrid]: "グリッド",
 
+	[Key.widgets]: "ウィジェット",
+	[Key.immersiveHome]: "イマーシブホーム",
+
 	// スポンサーページ
 	[Key.sponsor]: "スポンサー",
 	[Key.sponsorTitle]: "サポート",

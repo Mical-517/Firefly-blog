@@ -1,7 +1,14 @@
+/**
+ * 设置的运行期应用层（ADR-0002）。
+ *
+ * 存储与解析在 src/settings/registry.ts + store.ts（唯一事实源）；
+ * 壁纸模式 → DOM 的映射在 src/settings/wallpaper-spec.ts（唯一裁决）。
+ * 本文件保留历史导出名作为调用面，内部全部委托上述模块；
+ * 新增设置项时在注册表加声明，不再在这里复制四件套。
+ */
 import {
 	BANNER_HEIGHT_EXTEND,
 	DARK_MODE,
-	DEFAULT_THEME,
 	LIGHT_MODE,
 	SYSTEM_MODE,
 	WALLPAPER_BANNER,
@@ -9,14 +16,31 @@ import {
 	WALLPAPER_NONE,
 	WALLPAPER_OVERLAY,
 } from "@constants/constants";
-import type { LIGHT_DARK_MODE, WALLPAPER_MODE } from "@/types/config";
 import {
-	backgroundWallpaper,
-	expressiveCodeConfig,
-	sakuraConfig,
-	siteConfig,
-} from "../config";
+	BANNER_TEXT_OVERLAY_SELECTOR,
+	DATA_BANNER_TITLE_ENABLED,
+	DATA_WALLPAPER_MODE,
+	HEADER_WAVES_ID,
+	MAIN_CONTENT_SELECTOR,
+	MAIN_GRID_ID,
+	NAVBAR_ID,
+	WALLPAPER_GRADIENT_ID,
+	WALLPAPER_WRAPPER_ID,
+} from "@constants/dom";
+import type { LIGHT_DARK_MODE, WALLPAPER_MODE } from "@/types/config";
+import { backgroundWallpaper, expressiveCodeConfig } from "../config";
 import { isHomePage as checkIsHomePage } from "./layout-utils";
+import {
+	clampNumber,
+	getSettingDefinition,
+	hueFallback,
+} from "@/settings/registry";
+import { readSetting, writeSetting, clearSetting } from "@/settings/store";
+import {
+	applyElementSpec,
+	mainContentSpecFor,
+	wallpaperBodyState,
+} from "@/settings/wallpaper-spec";
 
 // Declare global functions
 declare global {
@@ -26,20 +50,14 @@ declare global {
 	}
 }
 
+// ---- 主题色相 ----
+
 export function getDefaultHue(): number {
-	const fallback = "250";
-	// 检查是否在浏览器环境中
-	if (typeof document === "undefined") {
-		return Number.parseInt(fallback, 10);
-	}
-	const configCarrier = document.getElementById("config-carrier");
-	return Number.parseInt(configCarrier?.dataset.hue || fallback, 10);
+	return hueFallback();
 }
 
 export function getDefaultTheme(): LIGHT_DARK_MODE {
-	// 如果配置文件中设置了 defaultMode，使用配置的值
-	// 否则使用 DEFAULT_THEME（向后兼容）
-	return siteConfig.themeColor.defaultMode ?? DEFAULT_THEME;
+	return getSettingDefinition("theme")!.fallback() as LIGHT_DARK_MODE;
 }
 
 // 获取系统主题
@@ -61,29 +79,15 @@ export function resolveTheme(theme: LIGHT_DARK_MODE): LIGHT_DARK_MODE {
 }
 
 export function getHue(): number {
-	// 先检查全局对象
-	if (typeof window === "undefined" || !window.localStorage) {
-		return getDefaultHue();
-	}
-	const stored = localStorage.getItem("hue");
-	return stored ? Number.parseInt(stored, 10) : getDefaultHue();
+	return readSetting<number>("hue");
 }
 
 export function setHue(hue: number): void {
-	// 先检查是否在浏览器环境
-	if (
-		typeof window === "undefined" ||
-		!window.localStorage ||
-		typeof document === "undefined"
-	) {
+	writeSetting("hue", hue);
+	if (typeof document === "undefined") {
 		return;
 	}
-	localStorage.setItem("hue", String(hue));
-	const r = document.querySelector(":root") as HTMLElement;
-	if (!r) {
-		return;
-	}
-	r.style.setProperty("--hue", String(hue));
+	document.documentElement.style.setProperty("--hue", String(hue));
 }
 
 export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
@@ -128,12 +132,8 @@ export function applyThemeToDocument(theme: LIGHT_DARK_MODE) {
 		return;
 	}
 
-	// 批量 DOM 操作，减少重绘
+	// 直接切换主题，利用 CSS 变量的特性让浏览器优化过渡
 	if (needsThemeChange) {
-		// 添加过渡保护类（但会导致大量重绘，所以使用更轻量的方式）
-		// document.documentElement.classList.add("is-theme-transitioning");
-
-		// 直接切换主题，利用 CSS 变量的特性让浏览器优化过渡
 		if (targetIsDark) {
 			document.documentElement.classList.add("dark");
 		} else {
@@ -164,8 +164,8 @@ export function setTheme(theme: LIGHT_DARK_MODE): void {
 	// 先应用主题
 	applyThemeToDocument(theme);
 
-	// 保存到localStorage
-	localStorage.setItem("theme", theme);
+	// 经由注册表存储（键: theme）
+	writeSetting("theme", theme);
 
 	// 如果切换到 system 模式，需要监听系统主题变化
 	if (theme === SYSTEM_MODE) {
@@ -247,16 +247,7 @@ function cleanupSystemThemeListener() {
 }
 
 export function getStoredTheme(): LIGHT_DARK_MODE {
-	// 检查是否在浏览器环境中
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultTheme();
-	}
-	return (
-		(localStorage.getItem("theme") as LIGHT_DARK_MODE) || getDefaultTheme()
-	);
+	return readSetting<LIGHT_DARK_MODE>("theme");
 }
 
 // 初始化主题监听器（用于页面加载后）
@@ -276,7 +267,16 @@ export function initThemeListener() {
 	}
 }
 
-// Wallpaper mode functions
+// ---- 壁纸模式 ----
+
+function applyBodyWallpaperState(mode: WALLPAPER_MODE): void {
+	const body = document.body;
+	const state = wallpaperBodyState(mode);
+	body.classList.toggle("enable-banner", state.enableBanner);
+	body.classList.toggle("no-banner-layout", !state.enableBanner);
+	body.classList.toggle("wallpaper-transparent", state.transparent);
+}
+
 export function applyWallpaperModeToDocument(
 	mode: WALLPAPER_MODE,
 	animate = true,
@@ -284,7 +284,7 @@ export function applyWallpaperModeToDocument(
 	// 获取当前的壁纸模式
 	const currentMode =
 		(document.documentElement.getAttribute(
-			"data-wallpaper-mode",
+			DATA_WALLPAPER_MODE,
 		) as WALLPAPER_MODE) || backgroundWallpaper.mode;
 
 	// 检查是否允许切换壁纸模式
@@ -309,40 +309,25 @@ export function applyWallpaperModeToDocument(
 	document.documentElement.classList.add("is-wallpaper-transitioning");
 
 	// 更新数据属性
-	document.documentElement.setAttribute("data-wallpaper-mode", mode);
+	document.documentElement.setAttribute(DATA_WALLPAPER_MODE, mode);
 
 	// 使用 requestAnimationFrame 确保在下一帧执行，避免闪屏
 	requestAnimationFrame(() => {
-		const body = document.body;
+		// body 类状态由 wallpaper-spec 统一裁决
+		applyBodyWallpaperState(mode);
 
-		// 移除所有壁纸相关的CSS类
-		body.classList.remove(
-			"enable-banner",
-			"wallpaper-transparent",
-			"no-banner-layout",
-		);
-
-		// 根据模式添加相应的CSS类
 		switch (mode) {
 			case WALLPAPER_BANNER:
-				body.classList.add("enable-banner");
 				showBannerMode(true);
 				break;
 			case WALLPAPER_FULLSCREEN:
-				body.classList.add("no-banner-layout");
 				showFullscreenMode(animate);
 				break;
 			case WALLPAPER_OVERLAY:
-				body.classList.add("wallpaper-transparent");
-				body.classList.add("no-banner-layout");
 				showOverlayMode();
 				break;
 			case WALLPAPER_NONE:
-				body.classList.add("no-banner-layout");
-				hideAllWallpapers();
-				break;
 			default:
-				body.classList.add("no-banner-layout");
 				hideAllWallpapers();
 				break;
 		}
@@ -359,43 +344,29 @@ export function applyWallpaperModeToDocument(
 
 // 确保壁纸状态正确
 function ensureWallpaperState(mode: WALLPAPER_MODE) {
-	const body = document.body;
+	// body 类状态由 wallpaper-spec 统一裁决
+	applyBodyWallpaperState(mode);
 
-	// 移除所有壁纸相关的CSS类
-	body.classList.remove(
-		"enable-banner",
-		"wallpaper-transparent",
-		"no-banner-layout",
-	);
-
-	// 根据模式添加相应的CSS类
 	switch (mode) {
 		case WALLPAPER_BANNER:
-			body.classList.add("enable-banner");
 			showBannerMode();
 			break;
 		case WALLPAPER_FULLSCREEN:
-			body.classList.add("no-banner-layout");
 			showFullscreenMode();
 			break;
 		case WALLPAPER_OVERLAY:
-			body.classList.add("wallpaper-transparent");
-			body.classList.add("no-banner-layout");
 			showOverlayMode();
 			break;
 		case WALLPAPER_NONE:
-			body.classList.add("no-banner-layout");
+		default:
 			hideAllWallpapers();
 			break;
 	}
-
-	// 更新导航栏透明模式
-	updateNavbarTransparency(mode);
 }
 
 function showBannerMode(animate = false) {
 	// 显示 wallpaper-wrapper 并切换为 banner 模式
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 	if (wallpaperWrapper) {
 		// 移除 overlay 和全屏壁纸模式类
 		wallpaperWrapper.classList.remove("wallpaper-overlay");
@@ -427,7 +398,7 @@ function showBannerMode(animate = false) {
 
 	// 显示横幅首页文本（如果启用且是首页）
 	const bannerTextOverlay = document.querySelector(
-		".banner-home-text-overlay",
+		BANNER_TEXT_OVERLAY_SELECTOR,
 	) as HTMLElement | null;
 	if (bannerTextOverlay) {
 		// 检查是否启用 homeText
@@ -450,31 +421,23 @@ function showBannerMode(animate = false) {
 	// 调整主内容位置
 	adjustMainContentPosition("banner", animate);
 
-	// 处理移动端非首页主内容区域位置
-	const mainContentWrapper = document.querySelector(
-		".w-full.z-30.pointer-events-none",
-	);
-	if (mainContentWrapper) {
-		const isHomePage = checkIsHomePage(window.location.pathname);
-		const isMobile = window.innerWidth < 1024;
-		// 只在移动端非首页时调整主内容位置
-		if (isMobile && !isHomePage) {
-			mainContentWrapper.classList.add("mobile-main-no-banner");
-		} else {
-			mainContentWrapper.classList.remove("mobile-main-no-banner");
-		}
-	}
+	// 处理移动端非首页主内容区域位置（由 mainContentSpecFor 统一裁决）
 
 	// 移除透明效果（横幅模式不使用半透明）
 	adjustMainContentTransparency(false);
 
 	// 调整导航栏透明度
-	const navbar = document.getElementById("navbar");
+	const navbar = document.getElementById(NAVBAR_ID);
 	if (navbar) {
 		// 获取导航栏透明模式配置（banner模式）
 		const transparentMode =
 			backgroundWallpaper.common?.navbar?.transparentMode || "semi";
+		const enableBlur = backgroundWallpaper.common?.navbar?.enableBlur ?? true;
+		const blurAmount = backgroundWallpaper.common?.navbar?.blur ?? 20;
+
 		navbar.setAttribute("data-transparent-mode", transparentMode);
+		navbar.setAttribute("data-enable-blur", String(enableBlur));
+		navbar.style.setProperty("--navbar-glass-blur", `${blurAmount}px`);
 
 		// 重新初始化半透明模式滚动检测（如果需要）
 		if (
@@ -488,7 +451,7 @@ function showBannerMode(animate = false) {
 
 function showFullscreenMode(animate = false) {
 	// 显示 wallpaper-wrapper 并切换为全屏壁纸模式
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 	const isMobile = window.innerWidth < 1024;
 	const isHomePage = checkIsHomePage(window.location.pathname);
 	if (wallpaperWrapper) {
@@ -517,7 +480,7 @@ function showFullscreenMode(animate = false) {
 
 	// 显示横幅首页文本（如果启用且是首页）
 	const bannerTextOverlay = document.querySelector(
-		".banner-home-text-overlay",
+		BANNER_TEXT_OVERLAY_SELECTOR,
 	) as HTMLElement | null;
 	if (bannerTextOverlay) {
 		const homeTextEnabled = backgroundWallpaper.common?.homeText?.enable;
@@ -546,7 +509,7 @@ function showFullscreenMode(animate = false) {
 	adjustMainContentTransparency(false);
 
 	// 调整导航栏透明度
-	const navbar = document.getElementById("navbar");
+	const navbar = document.getElementById(NAVBAR_ID);
 	if (navbar) {
 		const transparentMode =
 			backgroundWallpaper.common?.navbar?.transparentMode || "semi";
@@ -563,7 +526,7 @@ function showFullscreenMode(animate = false) {
 
 function showOverlayMode() {
 	// 切换 wallpaper-wrapper 为 overlay 模式
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 	if (wallpaperWrapper) {
 		// 添加 overlay 模式类，移除全屏壁纸模式类
 		wallpaperWrapper.classList.remove("wallpaper-fullscreen");
@@ -581,7 +544,7 @@ function showOverlayMode() {
 	}
 
 	// 隐藏横幅首页文本
-	const bannerTextOverlay = document.querySelector(".banner-home-text-overlay");
+	const bannerTextOverlay = document.querySelector(BANNER_TEXT_OVERLAY_SELECTOR);
 	if (bannerTextOverlay) {
 		bannerTextOverlay.classList.add("hidden");
 	}
@@ -595,7 +558,7 @@ function showOverlayMode() {
 
 function hideAllWallpapers() {
 	// 隐藏壁纸
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 
 	if (wallpaperWrapper) {
 		wallpaperWrapper.style.display = "none";
@@ -606,7 +569,7 @@ function hideAllWallpapers() {
 	}
 
 	// 隐藏横幅首页文本
-	const bannerTextOverlay = document.querySelector(".banner-home-text-overlay");
+	const bannerTextOverlay = document.querySelector(BANNER_TEXT_OVERLAY_SELECTOR);
 	if (bannerTextOverlay) {
 		bannerTextOverlay.classList.add("hidden");
 	}
@@ -617,7 +580,7 @@ function hideAllWallpapers() {
 }
 
 function updateNavbarTransparency(mode: WALLPAPER_MODE) {
-	const navbar = document.getElementById("navbar");
+	const navbar = document.getElementById(NAVBAR_ID);
 	if (!navbar) return;
 
 	let transparentMode: string;
@@ -625,24 +588,13 @@ function updateNavbarTransparency(mode: WALLPAPER_MODE) {
 	let blurAmount: number;
 
 	// 根据当前壁纸模式设置导航栏透明模式和模糊效果
-	if (mode === WALLPAPER_OVERLAY) {
-		// 全屏透明模式
+	if (mode === WALLPAPER_OVERLAY || mode === WALLPAPER_NONE) {
+		// 全屏透明模式与纯色背景模式
 		transparentMode = "none";
 		enableBlur = false;
 		blurAmount = 0;
-	} else if (mode === WALLPAPER_NONE) {
-		// 纯色背景模式
-		transparentMode = "none";
-		enableBlur = false;
-		blurAmount = 0;
-	} else if (mode === WALLPAPER_FULLSCREEN) {
-		// 全屏壁纸模式：使用 fullscreen 配置的透明模式和模糊效果
-		transparentMode =
-			backgroundWallpaper.common?.navbar?.transparentMode || "semi";
-		enableBlur = backgroundWallpaper.common?.navbar?.enableBlur ?? true;
-		blurAmount = backgroundWallpaper.common?.navbar?.blur ?? 20;
 	} else {
-		// Banner模式：使用配置的透明模式和模糊效果
+		// Banner 与全屏壁纸模式：使用配置的透明模式和模糊效果
 		transparentMode =
 			backgroundWallpaper.common?.navbar?.transparentMode || "semi";
 		enableBlur = backgroundWallpaper.common?.navbar?.enableBlur ?? true;
@@ -683,11 +635,11 @@ function updateNavbarTransparency(mode: WALLPAPER_MODE) {
 let fullscreenAnimationTimeout: ReturnType<typeof setTimeout> | null = null;
 
 function adjustMainContentPosition(
-	mode: WALLPAPER_MODE | "banner" | "none" | "overlay" | "fullscreen",
+	mode: WALLPAPER_MODE,
 	animate = false,
 ) {
 	const mainContent = document.querySelector(
-		".w-full.z-30.pointer-events-none",
+		MAIN_CONTENT_SELECTOR,
 	) as HTMLElement;
 	if (!mainContent) return;
 
@@ -697,118 +649,50 @@ function adjustMainContentPosition(
 		fullscreenAnimationTimeout = null;
 	}
 
-	// 移除现有的位置类
+	// 清除历史位置类（目标类由规格重新赋予）
 	mainContent.classList.remove("mobile-main-no-banner", "no-banner-layout");
 
-	switch (mode) {
-		case "banner": {
-			// Banner模式：主内容在banner下方
-			const isHome = checkIsHomePage(window.location.pathname);
-			const bannerTargetTop = "calc(var(--banner-height) - 3rem)";
-
-			// 禁用 CSS transition，防止整个定位过程中的值变化触发过渡动画
-			mainContent.style.setProperty("transition", "none", "important");
-			// 清除 fullscreen 模式特有的 inline 样式（position: relative, top: 0 等）
-			mainContent.style.position = "";
-			mainContent.style.zIndex = "";
-			mainContent.style.top = "";
-			mainContent.style.setProperty("margin-top", "");
-
-			if (!isHome) {
-				mainContent.classList.add("mobile-main-no-banner");
-				if (window.innerWidth < 1024) {
-					mainContent.style.setProperty("top", "5.5rem", "important");
-				} else {
-					mainContent.style.setProperty("top", bannerTargetTop, "important");
-				}
-			} else {
-				mainContent.style.setProperty("top", bannerTargetTop, "important");
-			}
-			const bannerGrid = document.getElementById("main-grid");
+	if (mode === WALLPAPER_FULLSCREEN && animate) {
+		// 运行时切换：从当前位置动画滑到壁纸下方，完成后切换为 relative
+		const computedTop = mainContent.getBoundingClientRect().top;
+		mainContent.style.transition = "none";
+		mainContent.style.position = "absolute";
+		mainContent.style.zIndex = "30";
+		mainContent.style.setProperty("top", `${computedTop}px`, "important");
+		// absolute 定位下 margin-top 不影响布局，提前设好最终值避免切换 relative 时跳变
+		mainContent.style.setProperty("margin-top", "1rem", "important");
+		mainContent.classList.add("no-banner-layout");
+		void mainContent.offsetWidth;
+		mainContent.style.setProperty(
+			"transition",
+			"top 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
+			"important",
+		);
+		mainContent.style.setProperty("top", "100vh", "important");
+		fullscreenAnimationTimeout = setTimeout(() => {
+			mainContent.style.transition = "none";
+			mainContent.style.position = "relative";
+			mainContent.style.setProperty("top", "0", "important");
+			void mainContent.offsetWidth;
+			mainContent.style.transition = "";
+		}, 450);
+	} else {
+		// 非动画路径：目标状态由 mainContentSpecFor 统一裁决
+		applyElementSpec(
+			mainContent,
+			mainContentSpecFor(mode, {
+				isHome: checkIsHomePage(window.location.pathname),
+				isMobile: window.innerWidth < 1024,
+			}),
+		);
+		if (mode === WALLPAPER_BANNER) {
+			// banner 模式下清除网格的内联 transform，交给 CSS 管理
+			const bannerGrid = document.getElementById(MAIN_GRID_ID);
 			if (bannerGrid) {
 				bannerGrid.style.transform = "";
 				bannerGrid.style.transition = "";
 			}
-			// 所有定位操作完成后，强制回流并恢复 CSS transition
-			void mainContent.offsetWidth;
-			mainContent.style.removeProperty("transition");
-			break;
 		}
-		case "fullscreen": {
-			// 全屏壁纸模式：壁纸已在文档流中占100vh，主内容紧跟其后
-			const isFullscreenMobile = window.innerWidth < 1024;
-			const isFullscreenHome = checkIsHomePage(window.location.pathname);
-			if (isFullscreenMobile && !isFullscreenHome) {
-				// 移动端非首页：壁纸已隐藏，主内容从导航栏下方开始
-				mainContent.classList.add("mobile-main-no-banner");
-				mainContent.classList.add("no-banner-layout");
-				mainContent.style.setProperty("top", "5.5rem", "important");
-				mainContent.style.setProperty("margin-top", "0", "important");
-				mainContent.style.position = "";
-				mainContent.style.minHeight = "";
-				mainContent.style.transition = "";
-				break;
-			}
-
-			if (animate) {
-				// 运行时切换：从当前位置动画滑到壁纸下方，完成后切换为 relative
-				const computedTop = mainContent.getBoundingClientRect().top;
-				mainContent.style.transition = "none";
-				mainContent.style.position = "absolute";
-				mainContent.style.zIndex = "30";
-				mainContent.style.setProperty("top", `${computedTop}px`, "important");
-				// absolute 定位下 margin-top 不影响布局，提前设好最终值避免切换 relative 时跳变
-				mainContent.style.setProperty("margin-top", "1rem", "important");
-				mainContent.classList.add("no-banner-layout");
-				void mainContent.offsetWidth;
-				mainContent.style.setProperty(
-					"transition",
-					"top 0.4s cubic-bezier(0.25, 0.46, 0.45, 0.94)",
-					"important",
-				);
-				mainContent.style.setProperty("top", "100vh", "important");
-				fullscreenAnimationTimeout = setTimeout(() => {
-					mainContent.style.transition = "none";
-					mainContent.style.position = "relative";
-					mainContent.style.setProperty("top", "0", "important");
-					void mainContent.offsetWidth;
-					mainContent.style.transition = "";
-				}, 450);
-			} else {
-				// 初始化：直接设置位置，无需动画
-				mainContent.classList.add("no-banner-layout");
-				mainContent.style.position = "relative";
-				mainContent.style.zIndex = "30";
-				mainContent.style.setProperty("top", "0", "important");
-				mainContent.style.setProperty("margin-top", "1rem", "important");
-				mainContent.style.transition = "";
-			}
-			break;
-		}
-		case "overlay":
-			// Overlay模式：使用紧凑布局，主内容从导航栏下方开始
-			mainContent.classList.add("no-banner-layout");
-			mainContent.style.setProperty("top", "5.5rem", "important");
-			mainContent.style.setProperty("margin-top", "0", "important");
-			mainContent.style.position = "";
-			mainContent.style.minHeight = "";
-			mainContent.style.transition = "";
-			break;
-		case "none":
-			// 无壁纸模式：主内容从导航栏下方开始
-			mainContent.classList.add("no-banner-layout");
-			mainContent.style.setProperty("top", "5.5rem", "important");
-			mainContent.style.setProperty("margin-top", "0", "important");
-			mainContent.style.position = "";
-			mainContent.style.minHeight = "";
-			mainContent.style.transition = "";
-			break;
-		default:
-			mainContent.style.setProperty("top", "5.5rem", "important");
-			mainContent.style.position = "";
-			mainContent.style.minHeight = "";
-			mainContent.style.transition = "";
-			break;
 	}
 
 	// 定位完成后显示主内容，防止初始加载时壁纸初始化前的内容闪烁
@@ -818,7 +702,7 @@ function adjustMainContentPosition(
 
 function adjustMainContentTransparency(enable: boolean) {
 	const mainContent = document.querySelector(
-		".w-full.z-30.pointer-events-none",
+		MAIN_CONTENT_SELECTOR,
 	);
 	const body = document.body;
 
@@ -847,7 +731,7 @@ export function setWallpaperMode(mode: WALLPAPER_MODE): void {
 	) {
 		return;
 	}
-	localStorage.setItem("wallpaperMode", mode);
+	writeSetting("wallpaperMode", mode);
 	applyWallpaperModeToDocument(mode);
 	if (typeof window !== "undefined") {
 		window.dispatchEvent(
@@ -876,85 +760,37 @@ export function getStoredWallpaperMode(): WALLPAPER_MODE {
 
 	const isSwitchable = backgroundWallpaper.switchable ?? true;
 	if (!isSwitchable) {
-		localStorage.removeItem("wallpaperMode");
+		clearSetting("wallpaperMode");
 		return backgroundWallpaper.mode;
 	}
 
-	return (
-		(localStorage.getItem("wallpaperMode") as WALLPAPER_MODE) ||
-		backgroundWallpaper.mode
-	);
+	return readSetting<WALLPAPER_MODE>("wallpaperMode");
 }
 
-// Overlay settings functions
-function clampNumber(value: number, min: number, max: number): number {
-	return Math.min(max, Math.max(min, value));
-}
+// ---- Overlay 参数（透明度/模糊度/卡片透明度） ----
 
 export function getDefaultOverlayOpacity(): number {
-	return backgroundWallpaper.overlay?.opacity ?? 0.8;
+	return getSettingDefinition("overlayOpacity")!.fallback() as number;
 }
 
 export function getDefaultOverlayBlur(): number {
-	return backgroundWallpaper.overlay?.blur ?? 0;
+	return getSettingDefinition("overlayBlur")!.fallback() as number;
 }
 
 export function getDefaultOverlayCardOpacity(): number {
-	return backgroundWallpaper.overlay?.cardOpacity ?? 0.6;
+	return getSettingDefinition("overlayCardOpacity")!.fallback() as number;
 }
 
 export function getStoredOverlayOpacity(): number {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultOverlayOpacity();
-	}
-	const stored = localStorage.getItem("overlayOpacity");
-	if (stored === null) {
-		return getDefaultOverlayOpacity();
-	}
-	const parsed = Number.parseFloat(stored);
-	if (Number.isNaN(parsed)) {
-		return getDefaultOverlayOpacity();
-	}
-	return clampNumber(parsed, 0, 1);
+	return readSetting<number>("overlayOpacity");
 }
 
 export function getStoredOverlayBlur(): number {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultOverlayBlur();
-	}
-	const stored = localStorage.getItem("overlayBlur");
-	if (stored === null) {
-		return getDefaultOverlayBlur();
-	}
-	const parsed = Number.parseFloat(stored);
-	if (Number.isNaN(parsed)) {
-		return getDefaultOverlayBlur();
-	}
-	return clampNumber(parsed, 0, 20);
+	return readSetting<number>("overlayBlur");
 }
 
 export function getStoredOverlayCardOpacity(): number {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultOverlayCardOpacity();
-	}
-	const stored = localStorage.getItem("overlayCardOpacity");
-	if (stored === null) {
-		return getDefaultOverlayCardOpacity();
-	}
-	const parsed = Number.parseFloat(stored);
-	if (Number.isNaN(parsed)) {
-		return getDefaultOverlayCardOpacity();
-	}
-	return clampNumber(parsed, 0, 1);
+	return readSetting<number>("overlayCardOpacity");
 }
 
 export function applyOverlayOpacityToDocument(opacity: number): void {
@@ -962,7 +798,7 @@ export function applyOverlayOpacityToDocument(opacity: number): void {
 		return;
 	}
 	const safeOpacity = clampNumber(opacity, 0, 1);
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 	if (wallpaperWrapper) {
 		wallpaperWrapper.style.setProperty(
 			"--overlay-opacity",
@@ -976,7 +812,7 @@ export function applyOverlayBlurToDocument(blur: number): void {
 		return;
 	}
 	const safeBlur = clampNumber(blur, 0, 20);
-	const wallpaperWrapper = document.getElementById("wallpaper-wrapper");
+	const wallpaperWrapper = document.getElementById(WALLPAPER_WRAPPER_ID);
 	if (wallpaperWrapper) {
 		wallpaperWrapper.style.setProperty("--overlay-blur", `${safeBlur}px`);
 	}
@@ -995,34 +831,19 @@ export function applyOverlayCardOpacityToDocument(cardOpacity: number): void {
 
 export function setOverlayOpacity(opacity: number): void {
 	const safeOpacity = clampNumber(opacity, 0, 1);
-	if (
-		typeof localStorage !== "undefined" &&
-		typeof localStorage.setItem === "function"
-	) {
-		localStorage.setItem("overlayOpacity", String(safeOpacity));
-	}
+	writeSetting("overlayOpacity", safeOpacity);
 	applyOverlayOpacityToDocument(safeOpacity);
 }
 
 export function setOverlayBlur(blur: number): void {
 	const safeBlur = clampNumber(blur, 0, 20);
-	if (
-		typeof localStorage !== "undefined" &&
-		typeof localStorage.setItem === "function"
-	) {
-		localStorage.setItem("overlayBlur", String(safeBlur));
-	}
+	writeSetting("overlayBlur", safeBlur);
 	applyOverlayBlurToDocument(safeBlur);
 }
 
 export function setOverlayCardOpacity(cardOpacity: number): void {
 	const safeCardOpacity = clampNumber(cardOpacity, 0, 1);
-	if (
-		typeof localStorage !== "undefined" &&
-		typeof localStorage.setItem === "function"
-	) {
-		localStorage.setItem("overlayCardOpacity", String(safeCardOpacity));
-	}
+	writeSetting("overlayCardOpacity", safeCardOpacity);
 	applyOverlayCardOpacityToDocument(safeCardOpacity);
 }
 
@@ -1032,42 +853,18 @@ export function applyStoredOverlaySettingsToDocument(): void {
 	applyOverlayCardOpacityToDocument(getStoredOverlayCardOpacity());
 }
 
-// Waves animation functions
+// ---- 开关型效果（水波纹/渐变/樱花/横幅标题/横幅轮播） ----
+
 export function getDefaultWavesEnabled(): boolean {
-	const wavesConfig = backgroundWallpaper.common?.waves?.enable;
-	if (typeof wavesConfig === "object") {
-		// 如果是分设备配置，检查当前设备
-		const isMobile =
-			typeof window !== "undefined" ? window.innerWidth < 768 : false;
-		return isMobile
-			? (wavesConfig.mobile ?? false)
-			: (wavesConfig.desktop ?? false);
-	}
-	return wavesConfig ?? false;
+	return getSettingDefinition("wavesEnabled")!.fallback() as boolean;
 }
 
 export function getStoredWavesEnabled(): boolean {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultWavesEnabled();
-	}
-	const stored = localStorage.getItem("wavesEnabled");
-	if (stored === null) {
-		return getDefaultWavesEnabled();
-	}
-	return stored === "true";
+	return readSetting<boolean>("wavesEnabled");
 }
 
 export function setWavesEnabled(enabled: boolean): void {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.setItem !== "function"
-	) {
-		return;
-	}
-	localStorage.setItem("wavesEnabled", String(enabled));
+	writeSetting("wavesEnabled", enabled);
 	applyWavesEnabledToDocument(enabled);
 }
 
@@ -1078,7 +875,7 @@ export function applyWavesEnabledToDocument(enabled: boolean): void {
 	// 更新 html 属性，CSS 会立即生效
 	document.documentElement.setAttribute("data-waves-enabled", String(enabled));
 	// 同时更新元素样式（兼容性）
-	const wavesElement = document.getElementById("header-waves");
+	const wavesElement = document.getElementById(HEADER_WAVES_ID);
 	if (wavesElement) {
 		if (enabled) {
 			wavesElement.style.display = "";
@@ -1090,41 +887,16 @@ export function applyWavesEnabledToDocument(enabled: boolean): void {
 	}
 }
 
-// Gradient transition functions
 export function getDefaultGradientEnabled(): boolean {
-	const gradientConfig = backgroundWallpaper.common?.gradient?.enable;
-	if (typeof gradientConfig === "object") {
-		const isMobile =
-			typeof window !== "undefined" ? window.innerWidth < 768 : false;
-		return isMobile
-			? (gradientConfig.mobile ?? true)
-			: (gradientConfig.desktop ?? true);
-	}
-	return gradientConfig ?? true;
+	return getSettingDefinition("gradientEnabled")!.fallback() as boolean;
 }
 
 export function getStoredGradientEnabled(): boolean {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultGradientEnabled();
-	}
-	const stored = localStorage.getItem("gradientEnabled");
-	if (stored === null) {
-		return getDefaultGradientEnabled();
-	}
-	return stored === "true";
+	return readSetting<boolean>("gradientEnabled");
 }
 
 export function setGradientEnabled(enabled: boolean): void {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.setItem !== "function"
-	) {
-		return;
-	}
-	localStorage.setItem("gradientEnabled", String(enabled));
+	writeSetting("gradientEnabled", enabled);
 	applyGradientEnabledToDocument(enabled);
 }
 
@@ -1136,7 +908,7 @@ export function applyGradientEnabledToDocument(enabled: boolean): void {
 		"data-gradient-enabled",
 		String(enabled),
 	);
-	const gradientElement = document.getElementById("wallpaper-gradient");
+	const gradientElement = document.getElementById(WALLPAPER_GRADIENT_ID);
 	if (gradientElement) {
 		if (enabled) {
 			gradientElement.style.display = "";
@@ -1148,58 +920,38 @@ export function applyGradientEnabledToDocument(enabled: boolean): void {
 	}
 }
 
-// Sakura effect functions
 export function getDefaultSakuraEnabled(): boolean {
-	return sakuraConfig?.enable ?? false;
+	return getSettingDefinition("sakuraEnabled")!.fallback() as boolean;
 }
 
 export function getStoredSakuraEnabled(): boolean {
-	if (typeof localStorage === "undefined") {
-		return getDefaultSakuraEnabled();
-	}
-	const stored = localStorage.getItem("sakuraEnabled");
-	if (stored === null) {
-		return getDefaultSakuraEnabled();
-	}
-	return stored === "true";
+	return readSetting<boolean>("sakuraEnabled");
 }
 
 export function setSakuraEnabled(enabled: boolean): void {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.setItem !== "function"
-	) {
+	writeSetting("sakuraEnabled", enabled);
+	if (typeof document === "undefined") {
 		return;
 	}
-	localStorage.setItem("sakuraEnabled", String(enabled));
 	document.documentElement.setAttribute("data-sakura-enabled", String(enabled));
 	// 实时切换樱花特效
-	window.dispatchEvent(
-		new CustomEvent("sakuraToggle", { detail: { enabled } }),
-	);
+	if (typeof window !== "undefined") {
+		window.dispatchEvent(
+			new CustomEvent("sakuraToggle", { detail: { enabled } }),
+		);
+	}
 }
 
-// Banner title functions
 export function getDefaultBannerTitleEnabled(): boolean {
-	return backgroundWallpaper.common?.homeText?.enable ?? true;
+	return getSettingDefinition("bannerTitleEnabled")!.fallback() as boolean;
 }
 
 export function getDefaultBannerCarouselEnabled(): boolean {
-	return backgroundWallpaper.banner?.carousel?.enable ?? false;
+	return getSettingDefinition("bannerCarouselEnabled")!.fallback() as boolean;
 }
 
 export function getStoredBannerTitleEnabled(): boolean {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultBannerTitleEnabled();
-	}
-	const stored = localStorage.getItem("bannerTitleEnabled");
-	if (stored === null) {
-		return getDefaultBannerTitleEnabled();
-	}
-	return stored === "true";
+	return readSetting<boolean>("bannerTitleEnabled");
 }
 
 export function getStoredBannerCarouselEnabled(): boolean {
@@ -1208,27 +960,11 @@ export function getStoredBannerCarouselEnabled(): boolean {
 	if (!isSwitchable) {
 		return getDefaultBannerCarouselEnabled();
 	}
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.getItem !== "function"
-	) {
-		return getDefaultBannerCarouselEnabled();
-	}
-	const stored = localStorage.getItem("bannerCarouselEnabled");
-	if (stored === null) {
-		return getDefaultBannerCarouselEnabled();
-	}
-	return stored === "true";
+	return readSetting<boolean>("bannerCarouselEnabled");
 }
 
 export function setBannerTitleEnabled(enabled: boolean): void {
-	if (
-		typeof localStorage === "undefined" ||
-		typeof localStorage.setItem !== "function"
-	) {
-		return;
-	}
-	localStorage.setItem("bannerTitleEnabled", String(enabled));
+	writeSetting("bannerTitleEnabled", enabled);
 	applyBannerTitleEnabledToDocument(enabled);
 }
 
@@ -1236,12 +972,8 @@ export function setBannerCarouselEnabled(enabled: boolean): void {
 	const safeEnabled = !!enabled;
 	const isSwitchable =
 		backgroundWallpaper.banner?.carousel?.switchable ?? false;
-	if (
-		isSwitchable &&
-		typeof localStorage !== "undefined" &&
-		typeof localStorage.setItem === "function"
-	) {
-		localStorage.setItem("bannerCarouselEnabled", String(safeEnabled));
+	if (isSwitchable) {
+		writeSetting("bannerCarouselEnabled", safeEnabled);
 	}
 	applyBannerCarouselEnabledToDocument(safeEnabled);
 	if (typeof window !== "undefined") {
@@ -1259,12 +991,12 @@ export function applyBannerTitleEnabledToDocument(enabled: boolean): void {
 	}
 	// 更新 html 属性，CSS 会立即生效
 	document.documentElement.setAttribute(
-		"data-banner-title-enabled",
+		DATA_BANNER_TITLE_ENABLED,
 		String(enabled),
 	);
 	// 同时更新元素样式（兼容性）
 	const bannerTextOverlay = document.querySelector(
-		".banner-home-text-overlay",
+		BANNER_TEXT_OVERLAY_SELECTOR,
 	) as HTMLElement;
 	if (bannerTextOverlay) {
 		if (enabled) {
@@ -1281,6 +1013,27 @@ export function applyBannerCarouselEnabledToDocument(enabled: boolean): void {
 	}
 	document.documentElement.setAttribute(
 		"data-banner-carousel-enabled",
+		String(enabled),
+	);
+}
+
+// ---- 沉浸首页（CONTEXT.md: Immersive Home，ADR-0003） ----
+
+export function getStoredImmersiveHome(): boolean {
+	return readSetting<boolean>("immersiveHome");
+}
+
+export function setImmersiveHome(enabled: boolean): void {
+	writeSetting("immersiveHome", enabled);
+	applyImmersiveHomeToDocument(enabled);
+}
+
+export function applyImmersiveHomeToDocument(enabled: boolean): void {
+	if (typeof document === "undefined") {
+		return;
+	}
+	document.documentElement.setAttribute(
+		"data-immersive-home",
 		String(enabled),
 	);
 }
