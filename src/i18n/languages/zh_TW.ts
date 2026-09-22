@@ -153,6 +153,24 @@ export const zh_TW: Translation = {
 	[Key.bangumiUpdatedAt]: "構建時間",
 	[Key.bangumiDataStatic]: "靜態數據",
 
+	// 微信讀書
+	[Key.weread]: "微信讀書",
+	[Key.wereadTitle]: "我的微信讀書",
+	[Key.wereadSubtitle]: "記錄我的閱讀足跡",
+	[Key.wereadReading]: "在讀",
+	[Key.wereadFinished]: "讀完",
+	[Key.wereadStatsMonth]: "本月閱讀",
+	[Key.wereadStatsDays]: "有效閱讀天數",
+	[Key.wereadStatsFinished]: "本月讀完",
+	[Key.wereadProgress]: "已讀",
+	[Key.wereadNotConfigured]: "未配置微信讀書",
+	[Key.wereadNotConfiguredDesc]:
+		"請在環境變數中配置 WEREAD_API_KEY 後重新建置站點",
+	[Key.wereadFetchError]: "閱讀數據暫時無法獲取",
+	[Key.wereadFetchErrorDesc]: "微信讀書介面請求失敗，請稍後重新建置站點",
+	[Key.wereadEmpty]: "書架還是空的",
+	[Key.wereadLastUpdated]: "數據更新於",
+
 	// 分頁
 	[Key.paginationFirst]: "首頁",
 	[Key.paginationPrev]: "上一頁",

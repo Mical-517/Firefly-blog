@@ -18,7 +18,7 @@
     "lqips": "npx tsx scripts/generate-lqips.ts",
     "sync-oss": "node --experimental-strip-types scripts/sync-oss-gallery.ts",
     "test:oss": "node --test --experimental-strip-types scripts/sync-oss-gallery.test.ts",
-    "test": "node --test --import tsx \"src/settings/*.test.ts\" \"scripts/*.test.ts\""
+    "test": "node --test --import tsx \"src/settings/*.test.ts\" \"src/utils/*.test.ts\" \"scripts/*.test.ts\""
   },
   "dependencies": {
     "@astrojs/check": "^0.9.9",

@@ -155,6 +155,25 @@ export const ja: Translation = {
 	[Key.bangumiUpdatedAt]: "ビルド時間",
 	[Key.bangumiDataStatic]: "静的データ",
 
+	// 微信読書
+	[Key.weread]: "微信読書",
+	[Key.wereadTitle]: "私の微信読書",
+	[Key.wereadSubtitle]: "読書の足跡を記録する",
+	[Key.wereadReading]: "読書中",
+	[Key.wereadFinished]: "読了",
+	[Key.wereadStatsMonth]: "今月の読書",
+	[Key.wereadStatsDays]: "有効読書日数",
+	[Key.wereadStatsFinished]: "今月の読了",
+	[Key.wereadProgress]: "読了率",
+	[Key.wereadNotConfigured]: "微信読書が未設定です",
+	[Key.wereadNotConfiguredDesc]:
+		"環境変数 WEREAD_API_KEY を設定してサイトを再ビルドしてください",
+	[Key.wereadFetchError]: "読書データを取得できません",
+	[Key.wereadFetchErrorDesc]:
+		"微信読書 API のリクエストに失敗しました。後ほどサイトを再ビルドしてください",
+	[Key.wereadEmpty]: "本棚はまだ空です",
+	[Key.wereadLastUpdated]: "データ更新",
+
 	// ページネーション
 	[Key.paginationFirst]: "最初",
 	[Key.paginationPrev]: "前へ",

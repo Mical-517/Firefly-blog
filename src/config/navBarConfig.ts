@@ -51,9 +51,12 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 
 			// 根据配置决定是否添加番组计划，在siteConfig关闭pages.bangumi时导航栏不显示番组计划
 			...(siteConfig.pages.bangumi ? [LinkPreset.Bangumi] : []),
+
+			// 根据配置决定是否添加微信读书，在siteConfig关闭pages.weread时导航栏不显示微信读书
+			...(siteConfig.pages.weread ? [LinkPreset.WeRead] : []),
 		],
 	});
-/*
+	/*
 	// 关于及其子菜单
 	links.push({
 		name: "关于",

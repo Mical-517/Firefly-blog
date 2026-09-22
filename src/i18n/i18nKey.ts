@@ -151,6 +151,23 @@ enum I18nKey {
 	bangumiUpdatedAt = "bangumiUpdatedAt",
 	bangumiDataStatic = "bangumiDataStatic",
 
+	// 微信读书
+	weread = "weread",
+	wereadTitle = "wereadTitle",
+	wereadSubtitle = "wereadSubtitle",
+	wereadReading = "wereadReading",
+	wereadFinished = "wereadFinished",
+	wereadStatsMonth = "wereadStatsMonth",
+	wereadStatsDays = "wereadStatsDays",
+	wereadStatsFinished = "wereadStatsFinished",
+	wereadProgress = "wereadProgress",
+	wereadNotConfigured = "wereadNotConfigured",
+	wereadNotConfiguredDesc = "wereadNotConfiguredDesc",
+	wereadFetchError = "wereadFetchError",
+	wereadFetchErrorDesc = "wereadFetchErrorDesc",
+	wereadEmpty = "wereadEmpty",
+	wereadLastUpdated = "wereadLastUpdated",
+
 	// 分页
 	paginationFirst = "paginationFirst",
 	paginationPrev = "paginationPrev",

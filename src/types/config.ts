@@ -89,6 +89,9 @@ export type SiteConfig = {
 		guestbook: boolean; // 留言板页面开关
 		bangumi: boolean;
 		gallery: boolean; // 相册页面开关
+		weread: boolean; // 微信读书页面开关
+		// 是否展示微信读书中私密阅读标记的书籍（详见 docs/adr/0005），默认 true
+		showPrivate?: boolean;
 	};
 
 	// 分类导航栏开关
@@ -184,6 +187,7 @@ export enum LinkPreset {
 	Gallery = 7,
 	Tags = 8,
 	Categories = 9,
+	WeRead = 10,
 }
 
 export type NavBarLink = {

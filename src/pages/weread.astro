@@ -1,0 +1,278 @@
+---
+import { Icon } from "astro-icon/components";
+import { siteConfig } from "@/config";
+import I18nKey from "@/i18n/i18nKey";
+import { i18n } from "@/i18n/translation";
+import MainGridLayout from "@/layouts/MainGridLayout.astro";
+import type { WeReadDisplayItem } from "@/types/weread";
+import {
+	formatDateI18nWithTime,
+	formatDateToYYYYMMDD,
+} from "@/utils/date-utils";
+import {
+	fetchWeReadData,
+	filterShelfItems,
+	finishedCountFromStats,
+	splitReadingStatus,
+} from "@/utils/weread-utils";
+
+// 微信读书展示页：数据在构建时从微信读书官方 Agent API 获取（见 docs/adr/0004），
+// 页面本身是纯静态的，不含任何密钥。
+
+// 检查页面是否启用
+if (!siteConfig.pages.weread) {
+	return Astro.redirect("/404/");
+}
+
+// 获取构建时间
+const buildTime = formatDateI18nWithTime(new Date());
+
+// 时长（秒）转 "x小时y分钟"。分钟向下取整，避免 7199 秒显示成 "1小时60分钟"
+function formatDuration(seconds: number): string {
+	const totalMinutes = Math.floor(seconds / 60);
+	const hours = Math.floor(totalMinutes / 60);
+	const minutes = totalMinutes % 60;
+	if (hours <= 0) return `${minutes} ${i18n(I18nKey.minute)}`;
+	if (minutes <= 0) return `${hours} ${i18n(I18nKey.hour)}`;
+	return `${hours} ${i18n(I18nKey.hour)} ${minutes} ${i18n(I18nKey.minute)}`;
+}
+
+// 时间戳（Unix 秒）转 YYYY-MM-DD
+function formatTimestamp(seconds: number | undefined): string | undefined {
+	if (!seconds) return undefined;
+	return formatDateToYYYYMMDD(new Date(seconds * 1000));
+}
+
+const showPrivate = siteConfig.pages.showPrivate ?? true;
+const result = await fetchWeReadData(import.meta.env.WEREAD_API_KEY);
+
+let reading: WeReadDisplayItem[] = [];
+let finished: WeReadDisplayItem[] = [];
+let monthlySeconds: number | undefined;
+let monthlyDays: number | undefined;
+let finishedCount: number | undefined;
+
+if (result) {
+	const items = filterShelfItems(result.items, showPrivate);
+	const split = splitReadingStatus(items);
+	reading = split.reading;
+	finished = split.finished;
+	monthlySeconds = result.stats?.totalReadTime;
+	monthlyDays = result.stats?.readDays;
+	finishedCount = finishedCountFromStats(result.stats);
+}
+
+// 渲染状态：未配置 Key / 接口失败 / 正常
+const state = !import.meta.env.WEREAD_API_KEY
+	? "not-configured"
+	: !result
+		? "error"
+		: "ok";
+---
+
+<MainGridLayout title={i18n(I18nKey.wereadTitle)} description={i18n(I18nKey.wereadSubtitle)}>
+  <div class="flex w-full rounded-(--radius-large) overflow-hidden relative min-h-32">
+    <div class="card-base z-10 px-9 py-6 relative w-full">
+      <!-- 页面标题 -->
+      <div class="relative w-full mb-8">
+        <div class="mb-6">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="h-8 w-8 rounded-lg bg-(--primary) flex items-center justify-center text-white dark:text-black/70">
+              <Icon name="fa7-solid:book-open" class="text-[1.5rem]"></Icon>
+            </div>
+            <div class="text-3xl font-bold text-neutral-900 dark:text-neutral-100">
+              {i18n(I18nKey.wereadTitle)}
+            </div>
+          </div>
+          <p class="text-base text-neutral-600 dark:text-neutral-400 leading-relaxed">
+            {i18n(I18nKey.wereadSubtitle)}
+          </p>
+          <p class="text-xs text-neutral-500 dark:text-neutral-500 mt-2">
+            {i18n(I18nKey.wereadLastUpdated)} {buildTime}
+          </p>
+        </div>
+
+        {state === "ok" && (
+          <>
+            <!-- 本月阅读统计卡 -->
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+              <div class="rounded-2xl border border-(--line-divider) bg-(--btn-regular-bg) px-6 py-4 flex items-center gap-4">
+                <Icon name="fa7-regular:clock" class="text-[1.75rem] text-(--primary)" />
+                <div>
+                  <div class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {monthlySeconds !== undefined ? formatDuration(monthlySeconds) : "—"}
+                  </div>
+                  <div class="text-sm text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.wereadStatsMonth)}</div>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-(--line-divider) bg-(--btn-regular-bg) px-6 py-4 flex items-center gap-4">
+                <Icon name="fa7-regular:calendar-check" class="text-[1.75rem] text-(--primary)" />
+                <div>
+                  <div class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {monthlyDays !== undefined ? `${monthlyDays} ${i18n(I18nKey.day)}` : "—"}
+                  </div>
+                  <div class="text-sm text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.wereadStatsDays)}</div>
+                </div>
+              </div>
+              <div class="rounded-2xl border border-(--line-divider) bg-(--btn-regular-bg) px-6 py-4 flex items-center gap-4">
+                <Icon name="fa7-solid:circle-check" class="text-[1.75rem] text-(--primary)" />
+                <div>
+                  <div class="text-2xl font-bold text-neutral-900 dark:text-neutral-100">
+                    {finishedCount !== undefined ? `${finishedCount} ${i18n(I18nKey.wereadFinished)}` : "—"}
+                  </div>
+                  <div class="text-sm text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.wereadStatsFinished)}</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- 在读 -->
+            <div class="mb-8">
+              <div class="flex items-center gap-2 mb-4">
+                <Icon name="fa7-solid:book-reader" class="text-[1.25rem] text-(--primary)" />
+                <h2 class="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+                  {i18n(I18nKey.wereadReading)}
+                  <span class="text-sm font-normal text-neutral-500 dark:text-neutral-400 ml-1">{reading.length}</span>
+                </h2>
+              </div>
+              {reading.length > 0 ? (
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {reading.map((item) => (
+                    <div class="group relative flex flex-col rounded-2xl border border-(--line-divider) bg-(--btn-regular-bg) overflow-hidden">
+                      <a href={item.deepLink} target="_blank" rel="noopener noreferrer" class="block">
+                        <div class="relative w-full aspect-[3/4] overflow-hidden">
+                          {item.cover ? (
+                            <img
+                              src={item.cover}
+                              alt={item.title}
+                              loading="lazy"
+                              class="weread-cover w-full h-full object-cover pointer-events-none transition-all duration-500 ease-out group-hover:scale-105"
+                            />
+                          ) : null}
+                          <div class={`weread-cover-fallback ${item.cover ? "hidden" : ""} absolute inset-0`}>
+                            <Icon name="fa7-solid:book" class="text-[2.5rem] opacity-40" />
+                          </div>
+                        </div>
+                      </a>
+                      <div class="px-3 py-2.5 flex flex-col gap-1">
+                        <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 line-clamp-1" title={item.title}>
+                          {item.title}
+                        </div>
+                        {item.author && (
+                          <div class="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{item.author}</div>
+                        )}
+                        {typeof item.progress === "number" && (
+                          <div class="mt-1">
+                            <div class="flex items-center justify-between text-xs text-neutral-500 dark:text-neutral-400 mb-1">
+                              <span>{i18n(I18nKey.wereadProgress)}</span>
+                              <span class="font-medium text-(--primary)">{item.progress}%</span>
+                            </div>
+                            <div class="h-1.5 w-full rounded-full bg-black/10 dark:bg-white/10 overflow-hidden">
+                              <div class="h-full rounded-full bg-(--primary)" style={`width: ${Math.min(item.progress, 100)}%`}></div>
+                            </div>
+                          </div>
+                        )}
+                        {item.readUpdateTime && (
+                          <div class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                            {formatTimestamp(item.readUpdateTime)}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.wereadEmpty)}</p>
+              )}
+            </div>
+
+            <!-- 读完 -->
+            <div class="mb-2">
+              <div class="flex items-center gap-2 mb-4">
+                <Icon name="fa7-solid:flag-checkered" class="text-[1.25rem] text-(--primary)" />
+                <h2 class="text-xl font-bold text-neutral-900 dark:text-neutral-100">
+                  {i18n(I18nKey.wereadFinished)}
+                  <span class="text-sm font-normal text-neutral-500 dark:text-neutral-400 ml-1">{finished.length}</span>
+                </h2>
+              </div>
+              {finished.length > 0 ? (
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {finished.map((item) => (
+                    <div class="group relative flex flex-col rounded-2xl border border-(--line-divider) bg-(--btn-regular-bg) overflow-hidden">
+                      <a href={item.deepLink} target="_blank" rel="noopener noreferrer" class="block">
+                        <div class="relative w-full aspect-[3/4] overflow-hidden">
+                          {item.cover ? (
+                            <img
+                              src={item.cover}
+                              alt={item.title}
+                              loading="lazy"
+                              class="weread-cover w-full h-full object-cover pointer-events-none transition-all duration-500 ease-out group-hover:scale-105"
+                            />
+                          ) : null}
+                          <div class={`weread-cover-fallback ${item.cover ? "hidden" : ""} absolute inset-0`}>
+                            <Icon name="fa7-solid:book" class="text-[2.5rem] opacity-40" />
+                          </div>
+                        </div>
+                      </a>
+                      <div class="px-3 py-2.5 flex flex-col gap-1">
+                        <div class="text-sm font-medium text-neutral-900 dark:text-neutral-100 line-clamp-1" title={item.title}>
+                          {item.title}
+                        </div>
+                        {item.author && (
+                          <div class="text-xs text-neutral-500 dark:text-neutral-400 line-clamp-1">{item.author}</div>
+                        )}
+                        {item.readUpdateTime && (
+                          <div class="text-xs text-neutral-400 dark:text-neutral-500 mt-0.5">
+                            {formatTimestamp(item.readUpdateTime)}
+                          </div>
+                        )}
+                      </div>
+                      <div class="absolute top-2 right-2 h-6 w-6 rounded-full bg-(--primary) flex items-center justify-center text-white dark:text-black/70">
+                        <Icon name="fa7-solid:check" class="text-[0.75rem]" />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p class="text-sm text-neutral-500 dark:text-neutral-400">{i18n(I18nKey.wereadEmpty)}</p>
+              )}
+            </div>
+          </>
+        )}
+
+        {state === "not-configured" && (
+          <div class="text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-(--btn-regular-bg) rounded-full mb-6 border border-(--line-divider)">
+              <Icon name="material-symbols:settings" class="text-[2rem] text-(--btn-content)" />
+            </div>
+            <h2 class="text-xl font-semibold text-black/80 dark:text-white/80 mb-3">
+              {i18n(I18nKey.wereadNotConfigured)}
+            </h2>
+            <p class="text-black/60 dark:text-white/60 mb-4 max-w-md mx-auto">
+              {i18n(I18nKey.wereadNotConfiguredDesc)}
+            </p>
+          </div>
+        )}
+
+        {state === "error" && (
+          <div class="text-center py-16">
+            <div class="inline-flex items-center justify-center w-16 h-16 bg-(--btn-regular-bg) rounded-full mb-6 border border-(--line-divider)">
+              <Icon name="material-symbols:error-outline" class="text-[2rem] text-red-500" />
+            </div>
+            <h2 class="text-xl font-semibold text-black/80 dark:text-white/80 mb-3">
+              {i18n(I18nKey.wereadFetchError)}
+            </h2>
+            <p class="text-black/60 dark:text-white/60 mb-4 max-w-md mx-auto">
+              {i18n(I18nKey.wereadFetchErrorDesc)}
+            </p>
+          </div>
+        )}
+      </div>
+    </div>
+  </div>
+</MainGridLayout>
+
+<style>
+  .weread-cover-fallback {
+    @apply flex items-center justify-center w-full h-full;
+  }
+</style>

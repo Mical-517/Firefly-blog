@@ -43,6 +43,11 @@ export const LinkPresets: { [key in LinkPreset]: NavBarLink } = {
 		url: "/gallery/",
 		icon: "material-symbols:photo-library",
 	},
+	[LinkPreset.WeRead]: {
+		name: i18n(I18nKey.weread),
+		url: "/weread/",
+		icon: "fa7-solid:book-open",
+	},
 	[LinkPreset.Tags]: {
 		name: i18n(I18nKey.tags),
 		url: "/tags/",

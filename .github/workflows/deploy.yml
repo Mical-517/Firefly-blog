@@ -5,6 +5,9 @@ on:
   # 如果你使用了别的分支名，请按需将 `master` 替换成你的分支名
   push:
     branches: [ master ]
+  # 每天北京时间 6 点定时重建，刷新微信读书等构建时数据
+  schedule:
+    - cron: "0 22 * * *" # UTC 时间，即北京时间次日凌晨 6 点
   # 允许你在 GitHub 上的 Actions 标签中手动触发此"工作流程"
   workflow_dispatch:
 
@@ -18,22 +21,25 @@ jobs:
     steps:
       - name: Checkout your repository using git
         uses: actions/checkout@v4
-      
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '22'
-          
+
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
           version: 9.14.4
           run_install: false
-          
+
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
-      
+
       - name: Build site
+        env:
+          # 微信读书 API Key（仅在构建期使用，不会进入构建产物，见 docs/adr/0004）
+          WEREAD_API_KEY: ${{ secrets.WEREAD_API_KEY }}
         run: pnpm run build
 
       - name: Create .nojekyll file

@@ -155,6 +155,25 @@ export const en: Translation = {
 	[Key.bangumiUpdatedAt]: "Build time",
 	[Key.bangumiDataStatic]: "Static data",
 
+	// WeRead
+	[Key.weread]: "WeRead",
+	[Key.wereadTitle]: "My WeRead",
+	[Key.wereadSubtitle]: "Tracking my reading journey",
+	[Key.wereadReading]: "Reading",
+	[Key.wereadFinished]: "Finished",
+	[Key.wereadStatsMonth]: "This month",
+	[Key.wereadStatsDays]: "Active reading days",
+	[Key.wereadStatsFinished]: "Finished this month",
+	[Key.wereadProgress]: "Read",
+	[Key.wereadNotConfigured]: "WeRead is not configured",
+	[Key.wereadNotConfiguredDesc]:
+		"Set the WEREAD_API_KEY environment variable and rebuild the site",
+	[Key.wereadFetchError]: "Reading data is temporarily unavailable",
+	[Key.wereadFetchErrorDesc]:
+		"The WeRead API request failed. Please rebuild the site later",
+	[Key.wereadEmpty]: "Your shelf is empty",
+	[Key.wereadLastUpdated]: "Data updated at",
+
 	// Pagination
 	[Key.paginationFirst]: "First",
 	[Key.paginationPrev]: "Previous",

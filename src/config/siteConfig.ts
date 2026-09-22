@@ -16,8 +16,7 @@ export const siteConfig: SiteConfig = {
 	site_url: "https://394000.xyz",
 
 	// 站点描述
-	description:
-		"Mical 的个人博客分享,记录日常与学习感悟。",
+	description: "Mical 的个人博客分享,记录日常与学习感悟。",
 
 	// 站点关键词
 	keywords: [
@@ -54,11 +53,11 @@ export const siteConfig: SiteConfig = {
 	},
 
 	favicon: [
-  	{
-    	src: "/favicon/favicon.ico",
-    	// theme: "light",  // 可选，指定主题 'light' | 'dark'
-    	// sizes: "32x32",  // 可选，图标大小
-  	},
+		{
+			src: "/favicon/favicon.ico",
+			// theme: "light",  // 可选，指定主题 'light' | 'dark'
+			// sizes: "32x32",  // 可选，图标大小
+		},
 	],
 
 	// 导航栏配置
@@ -71,7 +70,7 @@ export const siteConfig: SiteConfig = {
 		// 4. 网络图片: { type: "url", value: "https://example.com/logo.png", alt: "Logo" }
 		logo: {
 			type: "image",
-			value: "assets/images/my-logo.png",  // 注意没有 / 开头
+			value: "assets/images/my-logo.png", // 注意没有 / 开头
 			alt: "Logo",
 		},
 		// 导航栏标题
@@ -131,6 +130,7 @@ export const siteConfig: SiteConfig = {
 
 	// 页面开关配置 - 控制特定页面的访问权限，设为false会返回404
 	// bangumi的数据为编译时获取的，所以不是实时数据，请配置bangumi.userId
+	// weread的数据为编译时获取的（详见 docs/adr/0004），需要在环境变量中配置 WEREAD_API_KEY
 	pages: {
 		// 友链页面开关
 		friends: true,
@@ -142,6 +142,10 @@ export const siteConfig: SiteConfig = {
 		bangumi: false,
 		// 相册页面开关
 		gallery: true,
+		// 微信读书页面开关，展示站主的阅读情况
+		weread: true,
+		// 是否展示微信读书中私密阅读标记的书籍（详见 docs/adr/0005）
+		showPrivate: true,
 	},
 
 	// 分类导航栏开关，在首页和归档页顶部显示分类快捷导航

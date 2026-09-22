@@ -155,6 +155,25 @@ export const ru: Translation = {
 	[Key.bangumiUpdatedAt]: "Время сборки",
 	[Key.bangumiDataStatic]: "Статические данные",
 
+	// WeRead (微信读书)
+	[Key.weread]: "WeRead",
+	[Key.wereadTitle]: "Мой WeRead",
+	[Key.wereadSubtitle]: "Мои достижения в чтении",
+	[Key.wereadReading]: "Читаю",
+	[Key.wereadFinished]: "Прочитано",
+	[Key.wereadStatsMonth]: "В этом месяце",
+	[Key.wereadStatsDays]: "Дней с чтением",
+	[Key.wereadStatsFinished]: "Прочитано за месяц",
+	[Key.wereadProgress]: "Прогресс",
+	[Key.wereadNotConfigured]: "WeRead не настроен",
+	[Key.wereadNotConfiguredDesc]:
+		"Установите переменную окружения WEREAD_API_KEY и пересоберите сайт",
+	[Key.wereadFetchError]: "Данные о чтении временно недоступны",
+	[Key.wereadFetchErrorDesc]:
+		"Не удалось запросить API WeRead. Пересоберите сайт позже",
+	[Key.wereadEmpty]: "Полка пока пуста",
+	[Key.wereadLastUpdated]: "Данные обновлены",
+
 	// Пагинация
 	[Key.paginationFirst]: "Первая",
 	[Key.paginationPrev]: "Предыдущая",
