@@ -44,7 +44,10 @@ function formatTimestamp(seconds: number | undefined): string | undefined {
 }
 
 const showPrivate = siteConfig.pages.showPrivate ?? true;
-const result = await fetchWeReadData(import.meta.env.WEREAD_API_KEY);
+// Key 经 import.meta.env 静态注入；再兜底读一次 process.env，防止注入时机差异导致漏读
+const wereadApiKey =
+	import.meta.env.WEREAD_API_KEY ?? process.env.WEREAD_API_KEY;
+const result = await fetchWeReadData(wereadApiKey);
 
 let reading: WeReadDisplayItem[] = [];
 let finished: WeReadDisplayItem[] = [];
@@ -63,11 +66,7 @@ if (result) {
 }
 
 // 渲染状态：未配置 Key / 接口失败 / 正常
-const state = !import.meta.env.WEREAD_API_KEY
-	? "not-configured"
-	: !result
-		? "error"
-		: "ok";
+const state = !wereadApiKey ? "not-configured" : !result ? "error" : "ok";
 ---
 
 <MainGridLayout title={i18n(I18nKey.wereadTitle)} description={i18n(I18nKey.wereadSubtitle)}>
