@@ -174,6 +174,15 @@ export const ja: Translation = {
 	[Key.wereadEmpty]: "本棚はまだ空です",
 	[Key.wereadLastUpdated]: "データ更新",
 
+	// 映画
+	[Key.movies]: "映画",
+	[Key.moviesTitle]: "私の映画リスト",
+	[Key.moviesSubtitle]: "観た映画を記録",
+	[Key.moviesFilterAll]: "すべて",
+	[Key.moviesReview]: "感想を読む",
+	[Key.moviesNoReview]: "感想未投稿",
+	[Key.moviesLastUpdated]: "データ更新",
+
 	// ページネーション
 	[Key.paginationFirst]: "最初",
 	[Key.paginationPrev]: "前へ",

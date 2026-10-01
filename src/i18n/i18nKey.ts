@@ -168,6 +168,15 @@ enum I18nKey {
 	wereadEmpty = "wereadEmpty",
 	wereadLastUpdated = "wereadLastUpdated",
 
+	// 百大电影
+	movies = "movies",
+	moviesTitle = "moviesTitle",
+	moviesSubtitle = "moviesSubtitle",
+	moviesFilterAll = "moviesFilterAll",
+	moviesReview = "moviesReview",
+	moviesNoReview = "moviesNoReview",
+	moviesLastUpdated = "moviesLastUpdated",
+
 	// 分页
 	paginationFirst = "paginationFirst",
 	paginationPrev = "paginationPrev",

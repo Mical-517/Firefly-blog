@@ -58,4 +58,9 @@ export const LinkPresets: { [key in LinkPreset]: NavBarLink } = {
 		url: "/categories/",
 		icon: "material-symbols:folder-open-rounded",
 	},
+	[LinkPreset.Movies]: {
+		name: i18n(I18nKey.movies),
+		url: "/movies/",
+		icon: "material-symbols:movie",
+	},
 };

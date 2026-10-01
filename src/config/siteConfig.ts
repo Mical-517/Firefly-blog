@@ -144,6 +144,8 @@ export const siteConfig: SiteConfig = {
 		gallery: true,
 		// 微信读书页面开关，展示站主的阅读情况
 		weread: true,
+		// 百大电影页面开关，展示站主的观影记录
+		movies: true,
 		// 是否展示微信读书中私密阅读标记的书籍（详见 docs/adr/0005）
 		showPrivate: true,
 	},

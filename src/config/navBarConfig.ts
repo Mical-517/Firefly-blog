@@ -54,6 +54,9 @@ const getDynamicNavBarConfig = (): NavBarConfig => {
 
 			// 根据配置决定是否添加微信读书，在siteConfig关闭pages.weread时导航栏不显示微信读书
 			...(siteConfig.pages.weread ? [LinkPreset.WeRead] : []),
+
+			// 根据配置决定是否添加百大电影，在siteConfig关闭pages.movies时导航栏不显示百大电影
+			...(siteConfig.pages.movies ? [LinkPreset.Movies] : []),
 		],
 	});
 	/*

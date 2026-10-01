@@ -90,6 +90,7 @@ export type SiteConfig = {
 		bangumi: boolean;
 		gallery: boolean; // 相册页面开关
 		weread: boolean; // 微信读书页面开关
+		movies: boolean; // 百大电影页面开关
 		// 是否展示微信读书中私密阅读标记的书籍（详见 docs/adr/0005），默认 true
 		showPrivate?: boolean;
 	};
@@ -188,6 +189,7 @@ export enum LinkPreset {
 	Tags = 8,
 	Categories = 9,
 	WeRead = 10,
+	Movies = 11,
 }
 
 export type NavBarLink = {

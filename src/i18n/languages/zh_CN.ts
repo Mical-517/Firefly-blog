@@ -169,6 +169,15 @@ export const zh_CN: Translation = {
 	[Key.wereadEmpty]: "书架还是空的",
 	[Key.wereadLastUpdated]: "数据更新于",
 
+	// 百大电影
+	[Key.movies]: "百大电影",
+	[Key.moviesTitle]: "我的观影记录",
+	[Key.moviesSubtitle]: "记录我看过的每一部电影",
+	[Key.moviesFilterAll]: "全部",
+	[Key.moviesReview]: "阅读观影感受",
+	[Key.moviesNoReview]: "观影感受待补",
+	[Key.moviesLastUpdated]: "数据更新于",
+
 	// 分页
 	[Key.paginationFirst]: "首页",
 	[Key.paginationPrev]: "上一页",

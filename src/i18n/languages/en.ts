@@ -174,6 +174,15 @@ export const en: Translation = {
 	[Key.wereadEmpty]: "Your shelf is empty",
 	[Key.wereadLastUpdated]: "Data updated at",
 
+	// Movies
+	[Key.movies]: "Movies",
+	[Key.moviesTitle]: "My Watchlist",
+	[Key.moviesSubtitle]: "Every movie I've watched",
+	[Key.moviesFilterAll]: "All",
+	[Key.moviesReview]: "Read review",
+	[Key.moviesNoReview]: "Review pending",
+	[Key.moviesLastUpdated]: "Data updated at",
+
 	// Pagination
 	[Key.paginationFirst]: "First",
 	[Key.paginationPrev]: "Previous",

@@ -1,0 +1,40 @@
+---
+import MovieCardBody from "./MovieCardBody.astro";
+import { url } from "@/utils/url-utils";
+
+interface Props {
+	title: string;
+	cover: string;
+	description?: string;
+	tags?: string[];
+	post?: string; // 关联的观影感受文章路径（如 /posts/xxx/）
+	link?: string; // 预留的外部链接（如百度网盘分享）
+}
+
+const { title, cover, description, tags, post, link } = Astro.props;
+
+// 可点击跳转的链接：优先观影感受文章，其次外部链接
+const href = post || link || "";
+const clickable = href !== "";
+const hasReview = !!post;
+const dataTags = tags?.join(",") || "";
+---
+
+{
+  clickable ? (
+    <a
+      href={url(href)}
+      data-tags={dataTags}
+      class="movie-card group relative block overflow-hidden rounded-xl transition-all duration-300 hover:shadow-lg hover:scale-[1.02]"
+    >
+      <MovieCardBody {title} {cover} {description} {tags} {hasReview} />
+    </a>
+  ) : (
+    <div
+      data-tags={dataTags}
+      class="movie-card group relative block overflow-hidden rounded-xl transition-all duration-300 cursor-default"
+    >
+      <MovieCardBody {title} {cover} {description} {tags} {hasReview} />
+    </div>
+  )
+}

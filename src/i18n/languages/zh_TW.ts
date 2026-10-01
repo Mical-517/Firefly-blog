@@ -171,6 +171,15 @@ export const zh_TW: Translation = {
 	[Key.wereadEmpty]: "書架還是空的",
 	[Key.wereadLastUpdated]: "數據更新於",
 
+	// 百大電影
+	[Key.movies]: "百大電影",
+	[Key.moviesTitle]: "我的觀影記錄",
+	[Key.moviesSubtitle]: "記錄我看過的每一部電影",
+	[Key.moviesFilterAll]: "全部",
+	[Key.moviesReview]: "閱讀觀影感受",
+	[Key.moviesNoReview]: "觀影感受待補",
+	[Key.moviesLastUpdated]: "數據更新於",
+
 	// 分頁
 	[Key.paginationFirst]: "首頁",
 	[Key.paginationPrev]: "上一頁",

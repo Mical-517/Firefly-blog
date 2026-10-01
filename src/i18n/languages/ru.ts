@@ -174,6 +174,15 @@ export const ru: Translation = {
 	[Key.wereadEmpty]: "Полка пока пуста",
 	[Key.wereadLastUpdated]: "Данные обновлены",
 
+	// Фильмы
+	[Key.movies]: "Фильмы",
+	[Key.moviesTitle]: "Мои фильмы",
+	[Key.moviesSubtitle]: "Каждый фильм, который я посмотрел",
+	[Key.moviesFilterAll]: "Все",
+	[Key.moviesReview]: "Читать отзыв",
+	[Key.moviesNoReview]: "Отзыв ожидается",
+	[Key.moviesLastUpdated]: "Данные обновлены",
+
 	// Пагинация
 	[Key.paginationFirst]: "Первая",
 	[Key.paginationPrev]: "Предыдущая",
