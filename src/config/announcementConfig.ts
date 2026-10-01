@@ -5,7 +5,7 @@ export const announcementConfig: AnnouncementConfig = {
 	title: "公告",
 
 	// 公告内容
-	content: "欢迎来到Mical的博客，分享娱乐活动以及学习日常😃。",
+	content: "开拓视野，冲破艰险，看见世界，身临其境，贴近彼此，感受生活，这就是生活的目的。",
 
 	// 是否允许用户关闭公告
 	closable: true,

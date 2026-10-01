@@ -4,11 +4,7 @@ import type { GalleryAlbum } from "@/types/config";
 
 export const galleryOssAlbums: GalleryAlbum[] = [
 	{
-		"id": "anime",
-		"name": "anime"
-	},
-	{
-		"id": "wallpaper",
-		"name": "wallpaper"
+		"id": "favorites",
+		"name": "favorites"
 	}
 ];
