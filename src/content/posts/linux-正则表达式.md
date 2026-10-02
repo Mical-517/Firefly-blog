@@ -2,7 +2,7 @@
 title: Linux 正则表达式
 published: 2026-09-24
 description: '正则表达式基础语法速查，以及在 grep、sed、awk 等 Linux 命令中的实战用法与常见坑'
-image: ''
+image: 'https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/notes/20261002130202694.png'
 tags: [linux, 正则表达式, grep, sed, awk]
 category: 'Linux'
 group: tech

@@ -2,7 +2,7 @@
 title: Typora 使用笔记
 published: 2026-09-25
 description: 'Typora 常用 Markdown 语法速查与实用写作技巧，包括代码块快捷退出、表格操作、快捷键汇总等日常高频操作'
-image: ''
+image: 'https://bucket-qjy.oss-cn-qingdao.aliyuncs.com/picture/notes/20261002130159629.png'
 tags: [Typora, Markdown, 写作技巧, 效率]
 category: 'Tools'
 group: tech
